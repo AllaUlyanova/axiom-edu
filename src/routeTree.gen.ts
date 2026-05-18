@@ -9,38 +9,261 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as OfferRouteImport } from './routes/offer'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as CheckRouteImport } from './routes/check'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SubjectsIndexRouteImport } from './routes/subjects/index'
+import { Route as SubjectsSlugRouteImport } from './routes/subjects/$slug'
+import { Route as SubjectsSlugLessonsLessonIdRouteImport } from './routes/subjects/$slug.lessons.$lessonId'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OfferRoute = OfferRouteImport.update({
+  id: '/offer',
+  path: '/offer',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckRoute = CheckRouteImport.update({
+  id: '/check',
+  path: '/check',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SubjectsIndexRoute = SubjectsIndexRouteImport.update({
+  id: '/subjects/',
+  path: '/subjects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubjectsSlugRoute = SubjectsSlugRouteImport.update({
+  id: '/subjects/$slug',
+  path: '/subjects/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SubjectsSlugLessonsLessonIdRoute =
+  SubjectsSlugLessonsLessonIdRouteImport.update({
+    id: '/lessons/$lessonId',
+    path: '/lessons/$lessonId',
+    getParentRoute: () => SubjectsSlugRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/check': typeof CheckRoute
+  '/dashboard': typeof DashboardRoute
+  '/how-it-works': typeof HowItWorksRoute
+  '/login': typeof LoginRoute
+  '/offer': typeof OfferRoute
+  '/privacy': typeof PrivacyRoute
+  '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
+  '/subjects/$slug': typeof SubjectsSlugRouteWithChildren
+  '/subjects/': typeof SubjectsIndexRoute
+  '/subjects/$slug/lessons/$lessonId': typeof SubjectsSlugLessonsLessonIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/check': typeof CheckRoute
+  '/dashboard': typeof DashboardRoute
+  '/how-it-works': typeof HowItWorksRoute
+  '/login': typeof LoginRoute
+  '/offer': typeof OfferRoute
+  '/privacy': typeof PrivacyRoute
+  '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
+  '/subjects/$slug': typeof SubjectsSlugRouteWithChildren
+  '/subjects': typeof SubjectsIndexRoute
+  '/subjects/$slug/lessons/$lessonId': typeof SubjectsSlugLessonsLessonIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/check': typeof CheckRoute
+  '/dashboard': typeof DashboardRoute
+  '/how-it-works': typeof HowItWorksRoute
+  '/login': typeof LoginRoute
+  '/offer': typeof OfferRoute
+  '/privacy': typeof PrivacyRoute
+  '/signup': typeof SignupRoute
+  '/terms': typeof TermsRoute
+  '/subjects/$slug': typeof SubjectsSlugRouteWithChildren
+  '/subjects/': typeof SubjectsIndexRoute
+  '/subjects/$slug/lessons/$lessonId': typeof SubjectsSlugLessonsLessonIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/check'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/login'
+    | '/offer'
+    | '/privacy'
+    | '/signup'
+    | '/terms'
+    | '/subjects/$slug'
+    | '/subjects/'
+    | '/subjects/$slug/lessons/$lessonId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/check'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/login'
+    | '/offer'
+    | '/privacy'
+    | '/signup'
+    | '/terms'
+    | '/subjects/$slug'
+    | '/subjects'
+    | '/subjects/$slug/lessons/$lessonId'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/check'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/login'
+    | '/offer'
+    | '/privacy'
+    | '/signup'
+    | '/terms'
+    | '/subjects/$slug'
+    | '/subjects/'
+    | '/subjects/$slug/lessons/$lessonId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  CheckRoute: typeof CheckRoute
+  DashboardRoute: typeof DashboardRoute
+  HowItWorksRoute: typeof HowItWorksRoute
+  LoginRoute: typeof LoginRoute
+  OfferRoute: typeof OfferRoute
+  PrivacyRoute: typeof PrivacyRoute
+  SignupRoute: typeof SignupRoute
+  TermsRoute: typeof TermsRoute
+  SubjectsSlugRoute: typeof SubjectsSlugRouteWithChildren
+  SubjectsIndexRoute: typeof SubjectsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/offer': {
+      id: '/offer'
+      path: '/offer'
+      fullPath: '/offer'
+      preLoaderRoute: typeof OfferRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/check': {
+      id: '/check'
+      path: '/check'
+      fullPath: '/check'
+      preLoaderRoute: typeof CheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +271,56 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/subjects/': {
+      id: '/subjects/'
+      path: '/subjects'
+      fullPath: '/subjects/'
+      preLoaderRoute: typeof SubjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subjects/$slug': {
+      id: '/subjects/$slug'
+      path: '/subjects/$slug'
+      fullPath: '/subjects/$slug'
+      preLoaderRoute: typeof SubjectsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/subjects/$slug/lessons/$lessonId': {
+      id: '/subjects/$slug/lessons/$lessonId'
+      path: '/lessons/$lessonId'
+      fullPath: '/subjects/$slug/lessons/$lessonId'
+      preLoaderRoute: typeof SubjectsSlugLessonsLessonIdRouteImport
+      parentRoute: typeof SubjectsSlugRoute
+    }
   }
 }
 
+interface SubjectsSlugRouteChildren {
+  SubjectsSlugLessonsLessonIdRoute: typeof SubjectsSlugLessonsLessonIdRoute
+}
+
+const SubjectsSlugRouteChildren: SubjectsSlugRouteChildren = {
+  SubjectsSlugLessonsLessonIdRoute: SubjectsSlugLessonsLessonIdRoute,
+}
+
+const SubjectsSlugRouteWithChildren = SubjectsSlugRoute._addFileChildren(
+  SubjectsSlugRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  CheckRoute: CheckRoute,
+  DashboardRoute: DashboardRoute,
+  HowItWorksRoute: HowItWorksRoute,
+  LoginRoute: LoginRoute,
+  OfferRoute: OfferRoute,
+  PrivacyRoute: PrivacyRoute,
+  SignupRoute: SignupRoute,
+  TermsRoute: TermsRoute,
+  SubjectsSlugRoute: SubjectsSlugRouteWithChildren,
+  SubjectsIndexRoute: SubjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
