@@ -101,7 +101,7 @@ function CheckPage() {
               <Select value={subject} onValueChange={setSubject}>
                 <SelectTrigger className="mt-1.5"><SelectValue placeholder="Выбери" /></SelectTrigger>
                 <SelectContent>
-                  {subjects.map((s) => <SelectItem key={s.slug} value={s.slug}>{s.name}</SelectItem>)}
+                  {subjects.map((s: any) => <SelectItem key={s.slug} value={s.slug}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
