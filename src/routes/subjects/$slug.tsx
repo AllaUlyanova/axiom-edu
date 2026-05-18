@@ -44,7 +44,7 @@ function SubjectPage() {
       <section className="mx-auto max-w-7xl px-4 py-10">
         <h2 className="text-2xl font-semibold">Учебники</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {books.map((b) => (
+          {books.map((b: any) => (
             <div key={b.id} className="glass rounded-2xl p-5 hover-lift">
               <div className="grid h-12 w-12 place-items-center rounded-xl bg-secondary">
                 <BookOpen className="h-5 w-5 text-primary" />
@@ -69,7 +69,7 @@ function SubjectPage() {
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {lessons.map((l) => (
+          {lessons.map((l: any) => (
             <Link
               key={l.id}
               to="/subjects/$slug/lessons/$lessonId"
