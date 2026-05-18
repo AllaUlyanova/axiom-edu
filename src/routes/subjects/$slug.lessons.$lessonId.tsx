@@ -75,7 +75,7 @@ function LessonPage() {
 
         <h2 className="mt-10 text-xl font-semibold">Задания</h2>
         <div className="mt-4 space-y-3">
-          {tasks.map((t) => (
+          {tasks.map((t: any) => (
             <div key={t.id} className="glass rounded-2xl p-5">
               <div className="flex items-center gap-3">
                 <span className="grid h-9 w-9 place-items-center rounded-xl bg-secondary text-sm font-semibold">
@@ -86,7 +86,7 @@ function LessonPage() {
               {t.hints && t.hints.length > 0 && (
                 <details className="mt-3 text-sm text-muted-foreground">
                   <summary className="cursor-pointer">Подсказка</summary>
-                  <ul className="ml-4 mt-2 list-disc">{t.hints.map((h, i) => <li key={i}>{h}</li>)}</ul>
+                  <ul className="ml-4 mt-2 list-disc">{t.hints.map((h: string, i: number) => <li key={i}>{h}</li>)}</ul>
                 </details>
               )}
               <div className="mt-3">

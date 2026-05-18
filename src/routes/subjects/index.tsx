@@ -22,7 +22,7 @@ function SubjectsPage() {
         <h1 className="text-4xl font-bold tracking-tight md:text-5xl">Каталог</h1>
         <p className="mt-2 text-muted-foreground">Выбери предмет — откроются учебники и все уроки.</p>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {subjects.map((s) => {
+          {subjects.map((s: any) => {
             const theme = getSubjectTheme(s.slug);
             return (
               <Link
