@@ -144,9 +144,9 @@ export const checkHomework = createServerFn({ method: "POST" })
       is_correct: result.isCorrect,
       ai_verdict: result.verdict,
       ai_explanation: result.explanation,
-      ai_steps: result.steps as unknown as object,
+      ai_steps: result.steps as unknown as never,
       ai_hint: result.hint,
-      ai_similar: result.similar as unknown as object,
+      ai_similar: result.similar as unknown as never,
     });
 
     return result;
