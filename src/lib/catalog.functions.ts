@@ -24,7 +24,7 @@ export const getSubjectWithContent = createServerFn({ method: "GET" })
     const [{ data: books }, { data: lessons }] = await Promise.all([
       supabaseAdmin
         .from("books")
-        .select("id, title, author, cover_url, type, grade, sort_order")
+        .select("id, title, author, cover_url, type, grade, sort_order, page_offset, pages_count")
         .eq("subject_id", subject.id)
         .order("sort_order"),
       supabaseAdmin
