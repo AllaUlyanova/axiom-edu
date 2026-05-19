@@ -47,36 +47,44 @@ export const getLesson = createServerFn({ method: "GET" })
       .maybeSingle();
     if (!subject) return null;
 
-    // lessonId can be a number or a slug
     const isNumeric = /^\d+$/.test(data.lessonId);
     const query = supabaseAdmin
       .from("lessons")
-      .select("id, number, slug, title, summary, content_md, book_id, subject_id")
+      .select("id, number, slug, title, summary, content_md, book_id, subject_id, page_from, page_to")
       .eq("subject_id", subject.id);
 
     const { data: lesson, error } = isNumeric
       ? await query.eq("number", Number(data.lessonId)).maybeSingle()
       : await query.eq("slug", data.lessonId).maybeSingle();
     if (error) throw new Error(error.message);
-    if (!lesson) return { subject, lesson: null, tasks: [], neighbours: { prev: null, next: null } };
+    if (!lesson) return { subject, lesson: null, tasks: [], pages: [], book: null, neighbours: { prev: null, next: null } };
 
-    const { data: tasks } = await supabaseAdmin
-      .from("tasks")
-      .select("id, number, prompt, answer, hints, solution_md, difficulty")
-      .eq("lesson_id", lesson.id)
-      .order("number");
+    const [tasksRes, allRes, bookRes, pagesRes] = await Promise.all([
+      supabaseAdmin.from("tasks").select("id, number, prompt, answer, hints, solution_md, difficulty, page_number").eq("lesson_id", lesson.id).order("number"),
+      supabaseAdmin.from("lessons").select("number").eq("subject_id", subject.id).order("number"),
+      lesson.book_id ? supabaseAdmin.from("books").select("id, title").eq("id", lesson.book_id).maybeSingle() : Promise.resolve({ data: null }),
+      lesson.book_id && lesson.page_from
+        ? supabaseAdmin
+            .from("book_pages")
+            .select("page_number, image_url")
+            .eq("book_id", lesson.book_id)
+            .gte("page_number", lesson.page_from)
+            .lte("page_number", lesson.page_to ?? lesson.page_from)
+            .order("page_number")
+        : Promise.resolve({ data: [] }),
+    ]);
 
-    const { data: all } = await supabaseAdmin
-      .from("lessons")
-      .select("number")
-      .eq("subject_id", subject.id)
-      .order("number");
-    const nums = (all ?? []).map((l) => l.number);
+    const nums = (allRes.data ?? []).map((l) => l.number);
     const idx = nums.indexOf(lesson.number);
-    const neighbours = {
-      prev: idx > 0 ? nums[idx - 1] : null,
-      next: idx >= 0 && idx < nums.length - 1 ? nums[idx + 1] : null,
+    return {
+      subject,
+      lesson,
+      tasks: tasksRes.data ?? [],
+      pages: pagesRes.data ?? [],
+      book: bookRes.data ?? null,
+      neighbours: {
+        prev: idx > 0 ? nums[idx - 1] : null,
+        next: idx >= 0 && idx < nums.length - 1 ? nums[idx + 1] : null,
+      },
     };
-
-    return { subject, lesson, tasks: tasks ?? [], neighbours };
   });
