@@ -41,6 +41,42 @@ export type Database = {
         }
         Relationships: []
       }
+      book_chunks: {
+        Row: {
+          book_id: string
+          content: string
+          created_at: string
+          embedding: string
+          id: string
+          kind: string
+          lesson_id: string | null
+          page_number: number | null
+          unit_id: string | null
+        }
+        Insert: {
+          book_id: string
+          content: string
+          created_at?: string
+          embedding: string
+          id?: string
+          kind?: string
+          lesson_id?: string | null
+          page_number?: number | null
+          unit_id?: string | null
+        }
+        Update: {
+          book_id?: string
+          content?: string
+          created_at?: string
+          embedding?: string
+          id?: string
+          kind?: string
+          lesson_id?: string | null
+          page_number?: number | null
+          unit_id?: string | null
+        }
+        Relationships: []
+      }
       book_pages: {
         Row: {
           book_id: string
@@ -126,6 +162,117 @@ export type Database = {
           },
         ]
       }
+      exercises: {
+        Row: {
+          created_at: string
+          id: string
+          instruction: string | null
+          lesson_id: string
+          number: string
+          page_number: number | null
+          prompt: string | null
+          sort_order: number
+          source_image_url: string | null
+          type: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instruction?: string | null
+          lesson_id: string
+          number: string
+          page_number?: number | null
+          prompt?: string | null
+          sort_order?: number
+          source_image_url?: string | null
+          type?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instruction?: string | null
+          lesson_id?: string
+          number?: string
+          page_number?: number | null
+          prompt?: string | null
+          sort_order?: number
+          source_image_url?: string | null
+          type?: string | null
+        }
+        Relationships: []
+      }
+      grammar_topics: {
+        Row: {
+          book_id: string
+          created_at: string
+          examples: Json | null
+          id: string
+          lesson_id: string | null
+          page_number: number | null
+          rule_md: string | null
+          title: string
+          unit_id: string | null
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          examples?: Json | null
+          id?: string
+          lesson_id?: string | null
+          page_number?: number | null
+          rule_md?: string | null
+          title: string
+          unit_id?: string | null
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          examples?: Json | null
+          id?: string
+          lesson_id?: string | null
+          page_number?: number | null
+          rule_md?: string | null
+          title?: string
+          unit_id?: string | null
+        }
+        Relationships: []
+      }
+      ingest_jobs: {
+        Row: {
+          book_id: string
+          error: string | null
+          finished_at: string | null
+          id: string
+          log: string | null
+          progress: number
+          started_at: string | null
+          status: string
+          total: number
+        }
+        Insert: {
+          book_id: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          log?: string | null
+          progress?: number
+          started_at?: string | null
+          status?: string
+          total?: number
+        }
+        Update: {
+          book_id?: string
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          log?: string | null
+          progress?: number
+          started_at?: string | null
+          status?: string
+          total?: number
+        }
+        Relationships: []
+      }
       lessons: {
         Row: {
           book_id: string
@@ -141,6 +288,7 @@ export type Database = {
           subject_id: string
           summary: string | null
           title: string
+          unit_id: string | null
         }
         Insert: {
           book_id: string
@@ -156,6 +304,7 @@ export type Database = {
           subject_id: string
           summary?: string | null
           title: string
+          unit_id?: string | null
         }
         Update: {
           book_id?: string
@@ -171,6 +320,7 @@ export type Database = {
           subject_id?: string
           summary?: string | null
           title?: string
+          unit_id?: string | null
         }
         Relationships: [
           {
@@ -371,6 +521,7 @@ export type Database = {
           answer: string | null
           created_at: string
           difficulty: number | null
+          exercise_id: string | null
           hints: string[] | null
           id: string
           lesson_id: string
@@ -384,6 +535,7 @@ export type Database = {
           answer?: string | null
           created_at?: string
           difficulty?: number | null
+          exercise_id?: string | null
           hints?: string[] | null
           id?: string
           lesson_id: string
@@ -397,6 +549,7 @@ export type Database = {
           answer?: string | null
           created_at?: string
           difficulty?: number | null
+          exercise_id?: string | null
           hints?: string[] | null
           id?: string
           lesson_id?: string
@@ -415,6 +568,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      units: {
+        Row: {
+          book_id: string
+          created_at: string
+          id: string
+          number: number
+          page_from: number | null
+          page_to: number | null
+          sort_order: number
+          summary: string | null
+          title: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          id?: string
+          number: number
+          page_from?: number | null
+          page_to?: number | null
+          sort_order?: number
+          summary?: string | null
+          title: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          id?: string
+          number?: number
+          page_from?: number | null
+          page_to?: number | null
+          sort_order?: number
+          summary?: string | null
+          title?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -437,6 +626,45 @@ export type Database = {
         }
         Relationships: []
       }
+      vocabulary: {
+        Row: {
+          book_id: string
+          created_at: string
+          example: string | null
+          id: string
+          lesson_id: string | null
+          page_number: number | null
+          transcription: string | null
+          translation: string | null
+          unit_id: string | null
+          word: string
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          example?: string | null
+          id?: string
+          lesson_id?: string | null
+          page_number?: number | null
+          transcription?: string | null
+          translation?: string | null
+          unit_id?: string | null
+          word: string
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          example?: string | null
+          id?: string
+          lesson_id?: string | null
+          page_number?: number | null
+          transcription?: string | null
+          translation?: string | null
+          unit_id?: string | null
+          word?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -448,6 +676,23 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      match_book_chunks: {
+        Args: {
+          book_ids: string[]
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          book_id: string
+          content: string
+          id: string
+          kind: string
+          lesson_id: string
+          page_number: number
+          similarity: number
+          unit_id: string
+        }[]
       }
     }
     Enums: {
