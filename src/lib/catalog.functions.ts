@@ -10,6 +10,20 @@ export const getSubjects = createServerFn({ method: "GET" }).handler(async () =>
   return data ?? [];
 });
 
+export const getBooksForSubject = createServerFn({ method: "GET" })
+  .inputValidator((d: { slug: string }) => d)
+  .handler(async ({ data }) => {
+    const { data: subject } = await supabaseAdmin
+      .from("subjects").select("id").eq("slug", data.slug).maybeSingle();
+    if (!subject) return [];
+    const { data: books } = await supabaseAdmin
+      .from("books")
+      .select("id, title, page_offset, pages_count, sort_order")
+      .eq("subject_id", subject.id)
+      .order("sort_order");
+    return books ?? [];
+  });
+
 export const getSubjectWithContent = createServerFn({ method: "GET" })
   .inputValidator((d: { slug: string }) => d)
   .handler(async ({ data }) => {
