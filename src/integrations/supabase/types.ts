@@ -41,6 +41,41 @@ export type Database = {
         }
         Relationships: []
       }
+      book_pages: {
+        Row: {
+          book_id: string
+          created_at: string
+          id: string
+          image_url: string
+          ocr_text: string | null
+          page_number: number
+        }
+        Insert: {
+          book_id: string
+          created_at?: string
+          id?: string
+          image_url: string
+          ocr_text?: string | null
+          page_number: number
+        }
+        Update: {
+          book_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string
+          ocr_text?: string | null
+          page_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "book_pages_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       books: {
         Row: {
           author: string | null
@@ -48,6 +83,7 @@ export type Database = {
           created_at: string
           grade: number
           id: string
+          pages_count: number | null
           pdf_url: string | null
           sort_order: number
           subject_id: string
@@ -60,6 +96,7 @@ export type Database = {
           created_at?: string
           grade?: number
           id?: string
+          pages_count?: number | null
           pdf_url?: string | null
           sort_order?: number
           subject_id: string
@@ -72,6 +109,7 @@ export type Database = {
           created_at?: string
           grade?: number
           id?: string
+          pages_count?: number | null
           pdf_url?: string | null
           sort_order?: number
           subject_id?: string
@@ -95,6 +133,9 @@ export type Database = {
           created_at: string
           id: string
           number: number
+          ocr_text: string | null
+          page_from: number | null
+          page_to: number | null
           slug: string
           sort_order: number
           subject_id: string
@@ -107,6 +148,9 @@ export type Database = {
           created_at?: string
           id?: string
           number: number
+          ocr_text?: string | null
+          page_from?: number | null
+          page_to?: number | null
           slug: string
           sort_order?: number
           subject_id: string
@@ -119,6 +163,9 @@ export type Database = {
           created_at?: string
           id?: string
           number?: number
+          ocr_text?: string | null
+          page_from?: number | null
+          page_to?: number | null
           slug?: string
           sort_order?: number
           subject_id?: string
@@ -328,8 +375,10 @@ export type Database = {
           id: string
           lesson_id: string
           number: number
+          page_number: number | null
           prompt: string
           solution_md: string | null
+          source_image_url: string | null
         }
         Insert: {
           answer?: string | null
@@ -339,8 +388,10 @@ export type Database = {
           id?: string
           lesson_id: string
           number: number
+          page_number?: number | null
           prompt: string
           solution_md?: string | null
+          source_image_url?: string | null
         }
         Update: {
           answer?: string | null
@@ -350,8 +401,10 @@ export type Database = {
           id?: string
           lesson_id?: string
           number?: number
+          page_number?: number | null
           prompt?: string
           solution_md?: string | null
+          source_image_url?: string | null
         }
         Relationships: [
           {
