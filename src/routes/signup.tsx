@@ -14,9 +14,17 @@ export const Route = createFileRoute("/signup")({
 
 function translateSignupError(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes("already registered") || m.includes("already been registered") || m.includes("user already"))
+  if (
+    m.includes("already registered") ||
+    m.includes("already been registered") ||
+    m.includes("user already")
+  )
     return "Аккаунт с таким email уже есть. Войди в систему.";
-  if (m.includes("signups not allowed") || m.includes("signup is disabled") || m.includes("disable_signup"))
+  if (
+    m.includes("signups not allowed") ||
+    m.includes("signup is disabled") ||
+    m.includes("disable_signup")
+  )
     return "Регистрация сейчас отключена. Попробуй позже или напиши администратору.";
   if (m.includes("password") && (m.includes("short") || m.includes("at least") || m.includes("6")))
     return "Пароль слишком короткий — минимум 6 символов.";
