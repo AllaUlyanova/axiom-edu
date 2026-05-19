@@ -43,6 +43,15 @@ function LessonPage() {
     );
   }
 
+  const offset = (book as { page_offset?: number } | null)?.page_offset ?? 0;
+  const printedFrom = lesson.page_from != null ? lesson.page_from - offset : null;
+  const printedTo = lesson.page_to != null ? lesson.page_to - offset : null;
+  const checkSearch = {
+    subject: subject.slug,
+    ...(book ? { book: (book as { id: string }).id } : {}),
+    ...(printedFrom != null ? { page: String(printedFrom) } : {}),
+  } as never;
+
   return (
     <SiteLayout>
       <section className="mx-auto max-w-5xl px-4 py-10">
@@ -63,7 +72,7 @@ function LessonPage() {
             {lesson.summary && <p className="mt-2 text-muted-foreground">{lesson.summary}</p>}
           </div>
           <Button asChild className="rounded-xl">
-            <Link to="/check" search={{ subject: subject.slug, lesson: String(lesson.number) } as never}>
+            <Link to="/check" search={checkSearch}>
               <Sparkles className="mr-2 h-4 w-4" /> Проверить ДЗ
             </Link>
           </Button>
@@ -72,13 +81,13 @@ function LessonPage() {
         {pages && pages.length > 0 && (
           <div className="mt-8">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Страницы учебника {lesson.page_from}{lesson.page_to && lesson.page_to !== lesson.page_from ? `–${lesson.page_to}` : ""}
+              Страницы учебника {printedFrom}{printedTo && printedTo !== printedFrom ? `–${printedTo}` : ""}
             </h2>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               {pages.map((p: { page_number: number; image_url: string }) => (
                 <a key={p.page_number} href={p.image_url} target="_blank" rel="noreferrer" className="glass block overflow-hidden rounded-2xl p-2 transition hover:shadow-lg">
-                  <img src={p.image_url} alt={`Страница ${p.page_number}`} loading="lazy" className="w-full rounded-xl" />
-                  <div className="mt-2 px-2 pb-1 text-xs text-muted-foreground">с. {p.page_number}</div>
+                  <img src={p.image_url} alt={`Страница ${p.page_number - offset}`} loading="lazy" className="w-full rounded-xl" />
+                  <div className="mt-2 px-2 pb-1 text-xs text-muted-foreground">с. {p.page_number - offset}</div>
                 </a>
               ))}
             </div>
@@ -109,7 +118,7 @@ function LessonPage() {
               )}
               <div className="mt-3">
                 <Button asChild size="sm" variant="outline" className="rounded-xl">
-                  <Link to="/check" search={{ subject: subject.slug, lesson: String(lesson.number), task: String(t.number) } as never}>
+                  <Link to="/check" search={{ ...(checkSearch as Record<string, string>), ex: String(t.number), ...(t.page_number != null ? { page: String(t.page_number - offset) } : {}) } as never}>
                     Проверить этот ответ
                   </Link>
                 </Button>

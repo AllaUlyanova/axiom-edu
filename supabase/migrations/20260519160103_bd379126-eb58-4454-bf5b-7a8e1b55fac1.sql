@@ -1,0 +1,2 @@
+ALTER TABLE public.books ADD COLUMN IF NOT EXISTS page_offset integer NOT NULL DEFAULT 0;
+UPDATE public.books SET page_offset = 1 WHERE subject_id = (SELECT id FROM public.subjects WHERE slug = 'math');

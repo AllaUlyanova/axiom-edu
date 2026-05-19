@@ -5,6 +5,10 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const InputSchema = z.object({
   subjectSlug: z.string().min(1),
+  bookId: z.string().uuid().optional(),
+  printedPage: z.coerce.number().int().positive().optional(),
+  exerciseNumber: z.string().trim().max(20).optional(),
+  // legacy fallback (для предметов без книги)
   lessonNumber: z.coerce.number().int().positive().optional(),
   taskNumber: z.coerce.number().int().positive().optional(),
   answer: z.string().min(1).max(4000),
@@ -27,10 +31,7 @@ async function callLovableAI(messages: Array<{ role: string; content: unknown }>
 
   const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "google/gemini-2.5-flash",
       messages,
@@ -47,11 +48,10 @@ async function callLovableAI(messages: Array<{ role: string; content: unknown }>
 
   const json = await res.json();
   const content: string = json?.choices?.[0]?.message?.content ?? "{}";
-  let parsed: AICheck;
   try {
-    parsed = JSON.parse(content);
+    return JSON.parse(content);
   } catch {
-    parsed = {
+    return {
       isCorrect: false,
       verdict: "Не удалось распознать ответ",
       explanation: content,
@@ -61,7 +61,6 @@ async function callLovableAI(messages: Array<{ role: string; content: unknown }>
       motivation: "Попробуй ещё раз!",
     };
   }
-  return parsed;
 }
 
 export const checkHomework = createServerFn({ method: "POST" })
@@ -73,12 +72,48 @@ export const checkHomework = createServerFn({ method: "POST" })
     const { data: subject } = await supabaseAdmin
       .from("subjects").select("id, name, slug").eq("slug", data.subjectSlug).maybeSingle();
 
+    let book: { id: string; title: string; page_offset: number } | null = null;
     let lesson: { id: string; number: number; title: string; content_md: string | null; book_id: string | null; page_from: number | null; page_to: number | null } | null = null;
     let task: { id: string; number: number; prompt: string; answer: string | null; solution_md: string | null } | null = null;
     let pageImages: string[] = [];
     let ocrSnippet = "";
+    let printedRangeLabel = "";
 
-    if (subject && data.lessonNumber) {
+    if (subject && data.bookId && data.printedPage) {
+      const { data: b } = await supabaseAdmin
+        .from("books").select("id, title, page_offset").eq("id", data.bookId).maybeSingle();
+      book = b;
+      if (b) {
+        const offset = b.page_offset ?? 0;
+        const scanPage = data.printedPage + offset;
+        // pages: запрошенная + соседняя (разворот)
+        const scanFrom = scanPage;
+        const scanTo = scanPage + 1;
+        const { data: pages } = await supabaseAdmin
+          .from("book_pages")
+          .select("page_number, image_url, ocr_text")
+          .eq("book_id", b.id)
+          .gte("page_number", scanFrom)
+          .lte("page_number", scanTo)
+          .order("page_number");
+        pageImages = (pages ?? []).map((p) => p.image_url);
+        ocrSnippet = (pages ?? [])
+          .map((p) => `[печатная с. ${p.page_number - offset}]\n${(p.ocr_text ?? "").slice(0, 1800)}`)
+          .join("\n\n");
+        printedRangeLabel = `с. ${data.printedPage}`;
+        // найдём соответствующий урок (для записи прогресса)
+        const { data: l } = await supabaseAdmin
+          .from("lessons")
+          .select("id, number, title, content_md, book_id, page_from, page_to")
+          .eq("subject_id", subject.id)
+          .eq("book_id", b.id)
+          .lte("page_from", scanPage)
+          .gte("page_to", scanPage)
+          .maybeSingle();
+        lesson = l;
+      }
+    } else if (subject && data.lessonNumber) {
+      // legacy путь (если кто-то ещё шлёт урок/задание)
       const { data: l } = await supabaseAdmin
         .from("lessons")
         .select("id, number, title, content_md, book_id, page_from, page_to")
@@ -107,9 +142,12 @@ export const checkHomework = createServerFn({ method: "POST" })
 
     const ctxText = [
       subject ? `Предмет: ${subject.name}` : null,
-      lesson ? `Урок ${lesson.number}: ${lesson.title}` : null,
+      book ? `Учебник: ${book.title}` : null,
+      printedRangeLabel ? `Открыта страница ${printedRangeLabel}` : null,
+      data.exerciseNumber ? `Ученик решает упражнение №${data.exerciseNumber} на этой странице.` : null,
+      lesson ? `(Внутренний урок №${lesson.number}: ${lesson.title})` : null,
       ocrSnippet ? `ТЕКСТ СТРАНИЦ УЧЕБНИКА (распознано с фото, могут быть мелкие ошибки OCR):\n${ocrSnippet}` : null,
-      task ? `Задание №${task.number}: ${task.prompt}\nЭталонный ответ: ${task.answer ?? "—"}\nРешение: ${task.solution_md ?? "—"}` : null,
+      task ? `Эталонный ответ: ${task.answer ?? "—"}\nРешение: ${task.solution_md ?? "—"}` : null,
     ].filter(Boolean).join("\n\n");
 
     const system = `Ты — добрый учитель для ребёнка 3 класса (Россия). Проверяй ответ ТОЛЬКО на основе материала учебника (страницы и текст ниже). Если задания нет в материале — честно скажи: "Я не нашёл это задание в учебнике". Объясняй простыми словами, по шагам, дружелюбно.
@@ -128,12 +166,11 @@ export const checkHomework = createServerFn({ method: "POST" })
     const userParts: Array<Record<string, unknown>> = [
       { type: "text", text: `КОНТЕКСТ ИЗ УЧЕБНИКА:\n${ctxText || "(материал не загружен)"}\n\nОТВЕТ УЧЕНИКА:\n${data.answer}` },
     ];
-    // attach textbook page images (up to 2)
     for (const url of pageImages.slice(0, 2)) {
       userParts.push({ type: "image_url", image_url: { url } });
     }
     if (pageImages.length > 0) {
-      userParts.push({ type: "text", text: "Выше — фото страниц учебника. Найди на них нужное задание." });
+      userParts.push({ type: "text", text: `Выше — фото страниц учебника. ${data.exerciseNumber ? `Найди на них упражнение №${data.exerciseNumber}.` : "Найди нужное задание."}` });
     }
     if (data.imageDataUrl) {
       userParts.push({ type: "image_url", image_url: { url: data.imageDataUrl } });

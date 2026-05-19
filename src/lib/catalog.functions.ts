@@ -10,6 +10,20 @@ export const getSubjects = createServerFn({ method: "GET" }).handler(async () =>
   return data ?? [];
 });
 
+export const getBooksForSubject = createServerFn({ method: "GET" })
+  .inputValidator((d: { slug: string }) => d)
+  .handler(async ({ data }) => {
+    const { data: subject } = await supabaseAdmin
+      .from("subjects").select("id").eq("slug", data.slug).maybeSingle();
+    if (!subject) return [];
+    const { data: books } = await supabaseAdmin
+      .from("books")
+      .select("id, title, page_offset, pages_count, sort_order")
+      .eq("subject_id", subject.id)
+      .order("sort_order");
+    return books ?? [];
+  });
+
 export const getSubjectWithContent = createServerFn({ method: "GET" })
   .inputValidator((d: { slug: string }) => d)
   .handler(async ({ data }) => {
@@ -24,7 +38,7 @@ export const getSubjectWithContent = createServerFn({ method: "GET" })
     const [{ data: books }, { data: lessons }] = await Promise.all([
       supabaseAdmin
         .from("books")
-        .select("id, title, author, cover_url, type, grade, sort_order")
+        .select("id, title, author, cover_url, type, grade, sort_order, page_offset, pages_count")
         .eq("subject_id", subject.id)
         .order("sort_order"),
       supabaseAdmin
@@ -62,7 +76,7 @@ export const getLesson = createServerFn({ method: "GET" })
     const [tasksRes, allRes, bookRes, pagesRes] = await Promise.all([
       supabaseAdmin.from("tasks").select("id, number, prompt, answer, hints, solution_md, difficulty, page_number").eq("lesson_id", lesson.id).order("number"),
       supabaseAdmin.from("lessons").select("number").eq("subject_id", subject.id).order("number"),
-      lesson.book_id ? supabaseAdmin.from("books").select("id, title").eq("id", lesson.book_id).maybeSingle() : Promise.resolve({ data: null }),
+      lesson.book_id ? supabaseAdmin.from("books").select("id, title, page_offset").eq("id", lesson.book_id).maybeSingle() : Promise.resolve({ data: null }),
       lesson.book_id && lesson.page_from
         ? supabaseAdmin
             .from("book_pages")

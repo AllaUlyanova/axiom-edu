@@ -119,6 +119,7 @@ export type Database = {
           created_at: string
           grade: number
           id: string
+          page_offset: number
           pages_count: number | null
           pdf_url: string | null
           sort_order: number
@@ -132,6 +133,7 @@ export type Database = {
           created_at?: string
           grade?: number
           id?: string
+          page_offset?: number
           pages_count?: number | null
           pdf_url?: string | null
           sort_order?: number
@@ -145,6 +147,7 @@ export type Database = {
           created_at?: string
           grade?: number
           id?: string
+          page_offset?: number
           pages_count?: number | null
           pdf_url?: string | null
           sort_order?: number
