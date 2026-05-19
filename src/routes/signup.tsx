@@ -14,11 +14,27 @@ export const Route = createFileRoute("/signup")({
 
 function translateSignupError(message: string): string {
   const m = message.toLowerCase();
-  if (m.includes("already registered") || m.includes("already been registered") || m.includes("user already"))
+  if (
+    m.includes("already registered") ||
+    m.includes("already been registered") ||
+    m.includes("user already")
+  )
     return "Аккаунт с таким email уже есть. Войди в систему.";
+  if (
+    m.includes("signups not allowed") ||
+    m.includes("signup is disabled") ||
+    m.includes("disable_signup")
+  )
+    return "Регистрация сейчас отключена. Попробуй позже или напиши администратору.";
   if (m.includes("password") && (m.includes("short") || m.includes("at least") || m.includes("6")))
     return "Пароль слишком короткий — минимум 6 символов.";
+  if (m.includes("weak password") || m.includes("password should"))
+    return "Пароль слишком простой. Добавь буквы и цифры.";
   if (m.includes("invalid") && m.includes("email")) return "Неверный формат email.";
+  if (m.includes("email rate limit") || m.includes("email rate"))
+    return "Слишком много писем на этот email. Подожди минуту и попробуй снова.";
+  if (m.includes("422") || m.includes("unprocessable"))
+    return "Не удалось создать аккаунт: проверь email и пароль или попробуй другой email.";
   if (m.includes("rate") || m.includes("too many")) return "Слишком много попыток. Подожди минуту.";
   return message || "Не удалось создать аккаунт. Попробуй ещё раз.";
 }
@@ -37,6 +53,14 @@ function Signup() {
     try {
       const normalizedEmail = email.trim().toLowerCase();
       const trimmedName = name.trim();
+      if (trimmedName.length < 2) {
+        toast.error("Напиши имя ученика — минимум 2 символа");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+        toast.error("Введи корректный email родителя");
+        return;
+      }
       if (password.length < 6) {
         toast.error("Пароль должен быть не короче 6 символов");
         return;
@@ -56,9 +80,11 @@ function Signup() {
       if (data.session) {
         toast.success("Аккаунт создан! Добро пожаловать 🎉");
         nav({ to: "/dashboard" });
-      } else {
-        toast.success("Аккаунт создан! Подтверди email и войди.");
+      } else if (data.user) {
+        toast.success("Аккаунт создан! Теперь войди с этим email и паролем.");
         nav({ to: "/login", search: { redirect: "/dashboard" } as never });
+      } else {
+        toast.error("Не получили подтверждение создания аккаунта. Попробуй ещё раз.");
       }
     } catch (err) {
       toast.error(translateSignupError(err instanceof Error ? err.message : ""));
