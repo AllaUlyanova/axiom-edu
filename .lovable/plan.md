@@ -1,138 +1,101 @@
-## Что строим
 
-Premium EdTech-платформа для учеников 3 класса РФ с AI-проверкой ДЗ. Полный MVP с backend (Lovable Cloud), AI (Lovable AI Gateway), всеми страницами, динамическими уроками без хардкода и админкой.
+## Что в загруженных файлах
 
-Стек: TanStack Start + React 19 + Tailwind v4 + shadcn + Framer Motion + Lovable Cloud (Supabase) + Lovable AI.
+Оба PDF — это сканы учебника **Моро М. И. «Математика. 3 класс»** (УМК «Школа России», Просвещение), по 113 страниц:
+- `book2` — Часть 1
+- `book1` — Часть 2
 
----
-
-## Дизайн-система
-
-Светлая premium тема, glassmorphism, pastel:
-- Фон: тёплый off-white `oklch(0.99 0.005 90)`
-- Primary: мягкий индиго `oklch(0.62 0.18 270)`
-- Accent pastels: мята, персик, лаванда, нежно-голубой (по предметам)
-- Тонкие тени, blur backdrops, плавные градиенты
-- Шрифты: Inter (UI) + Manrope (заголовки), крупные радиусы (16–24px)
-- Анимации: Framer Motion — fade/slide-up, hover-lift, shimmer, AI typing
-- Mascot: дружелюбный AI-персонаж (генерация через imagegen)
+Это **сканы**, не текст: внутри изображения страниц без OCR-слоя. Поэтому одного «загрузить PDF в базу» мало — нужно превратить страницы в структуру `subject → book → lesson → task`, чтобы AI мог по ним проверять домашку (RAG).
 
 ---
 
-## Структура маршрутов (TanStack file-based)
+## План реализации
 
-Публичные:
-- `/` — Лендинг (hero, как работает, предметы preview, CTA)
-- `/subjects` — Каталог предметов
-- `/subjects/$slug` — Страница предмета (учебники, тетради, уроки)
-- `/subjects/$slug/lessons/$lessonId` — Страница урока (динамически, ВСЕ уроки)
-- `/check` — AI-проверка ДЗ (форма + результат)
-- `/how-it-works` — Инструкция (timeline)
-- `/privacy` — Политика конфиденциальности
-- `/terms` — Пользовательское соглашение
-- `/offer` — Публичная оферта
-- `/login`, `/signup`, `/reset-password`
+### 1. Хранилище и модель данных (минимальные правки)
 
-Защищённые (`_authenticated/`):
-- `/dashboard` — Дашборд ученика (задания, прогресс, streak, достижения)
-- `/profile` — Профиль
+Используем уже существующие таблицы `subjects / books / lessons / tasks` и bucket `book-covers`. Добавляем:
 
-Админ (`_authenticated/_admin/`):
-- `/admin` — Обзор + статистика
-- `/admin/subjects`, `/admin/books`, `/admin/workbooks`, `/admin/lessons`, `/admin/tasks`, `/admin/users`
+- bucket `textbooks` (приватный) — оригинальные PDF;
+- bucket `textbook-pages` (публичный) — JPG каждой страницы (`{book_id}/p-001.jpg` …);
+- в `lessons` поле `page_from / page_to` (int) — диапазон страниц в учебнике;
+- в `tasks` поле `page_number` (int) и `source_image_url` (text) — картинка вырезанной задачи / страницы.
 
----
+Это нужно, чтобы:
+- ученик мог выбрать «Урок 5, задание 2» и сразу увидеть страницу из учебника;
+- AI получал не «придуманный» урок, а реальный текст/картинку из книги.
 
-## Схема БД (Lovable Cloud)
+### 2. Заливка учебников (одноразовый скрипт)
 
-```text
-subjects(id, slug, name, icon, color, description, order)
-books(id, subject_id, title, author, cover_url, pdf_url, type[textbook|workbook], grade)
-lessons(id, book_id, subject_id, number, slug, title, summary, content_md, order)
-tasks(id, lesson_id, number, prompt, answer, hints[], solution_md, difficulty)
-profiles(id→auth.users, display_name, avatar_url, grade, streak, last_active_at)
-user_roles(id, user_id, role[admin|student])  -- отдельная таблица, has_role()
-progress(id, user_id, lesson_id, status, score, completed_at)
-submissions(id, user_id, task_id, answer_text, image_url, ai_verdict, ai_explanation, ai_steps, is_correct, created_at)
-achievements(id, user_id, code, title, earned_at)
-embeddings(id, source_type, source_id, chunk_text, embedding vector(1536))  -- pgvector
-```
+Скрипт `scripts/ingest-textbook.ts` (запускается локально через `bun run`, использует `supabaseAdmin`):
 
-RLS: students видят/пишут только своё; admins (через `has_role`) — всё. Storage buckets: `book-covers` (public), `book-pdfs` (private), `homework-uploads` (private per user).
+1. Загружает PDF в `textbooks/moro-3-part-{1,2}.pdf`.
+2. Через `pdftoppm` рендерит каждую страницу в JPG 150 dpi, заливает в `textbook-pages/{book_id}/p-XXX.jpg`.
+3. Через `tesseract` (rus) делает OCR каждой страницы → текст сохраняем в `lessons.content_md` (черновой) и в JSONB-поле `ocr_text` для поиска.
+4. Создаёт записи `books` для двух частей и предварительные `lessons` по номерам страниц (1 разворот = 1 урок как стартовый шаблон).
 
-Seed: ~3 предмета × 1 учебник × 20+ уроков с задачами — чтобы реально работали ВСЕ уроки без хардкода (генерация через скрипт + AI).
+После прогона админ заходит в `/admin/books/{id}` и **уточняет границы уроков** (drag по списку страниц) и редактирует темы — это быстрее, чем парсить оглавление автоматически.
 
----
+### 3. UI учебника для ученика
 
-## AI-архитектура
+Новая страница `/subjects/math/books/$bookId`:
+- listing уроков с превью первой страницы (берём из `textbook-pages`);
+- внутри урока — карусель страниц (lightbox по клику) + список заданий;
+- у каждой задачи кнопка **«Проверить это задание»** → ведёт на `/check?subject=math&book=…&lesson=…&task=…` с уже подставленным контекстом.
 
-Server functions (`createServerFn`) через Lovable AI Gateway:
+### 4. Поток «отправить домашнее задание»
 
-1. **`checkHomework`** — принимает subject/book/lesson/task/answer/image. Делает:
-   - OCR изображения (Gemini multimodal)
-   - RAG: эмбеддинг запроса → pgvector поиск чанков урока/учебника → контекст
-   - Structured output: `{ isCorrect, verdict, explanation, steps[], hint, similarTask }`
-   - Системный промпт: «отвечай только на основе материала; если нет — скажи "Я не нашёл это в учебнике"»
+Форма `/check` уже есть. Дорабатываем:
 
-2. **`generateSimilarTask`** — на основе текущей задачи + контекста урока.
+1. **Контекст книги** — если в query есть `book/lesson/task`, показываем сверху картинку страницы из учебника и текст задания (чтобы ученик видел, что проверяет).
+2. **Загрузка работы** — ученик либо фотографирует тетрадь (до 4 МБ, до 4 фото — multi-upload в `homework` bucket), либо пишет ответ текстом.
+3. **Server fn `checkHomework`** (уже есть) расширяем:
+   - грузит из `tasks` оригинал задания + `solution_md` + `answer` + картинку страницы;
+   - передаёт в Gemini 2.5 Flash как **vision-input**: `[страница учебника, фото тетради, эталонное решение]`;
+   - просит вернуть JSON `{ isCorrect, verdict, explanation, mistakes[], steps[], hint, similarTask, motivation }`;
+   - сохраняет в `submissions` со ссылками на исходники.
+4. **Результат** — карточка «верно / есть ошибки», пошаговый разбор, подсказка, кнопка «Дай похожую задачу» (вызывает отдельный server fn, который сэмплирует другую `task` из того же урока).
 
-3. **`tutorChat`** — стриминговый AI-помощник (generator + `yield`), привязанный к уроку.
+### 5. Админка
 
-4. **`ingestBook`** (admin) — парсинг PDF → чанки → embeddings (gemini-embedding-001) → `embeddings` таблица.
+В `/admin` добавляем раздел **«Учебники»**:
+- кнопка «Загрузить PDF» (выбор предмета, части, года);
+- триггерит server fn, которая запускает ingest как фоновую задачу и пишет прогресс в `ingest_jobs`;
+- список книг → редактор уроков (drag границы страниц, заголовок, summary) → редактор задач (номер, prompt, ответ, подсказки, привязка к странице).
 
-Скрипт-сидер для демо-контента: запускается локально через `code--exec` + Lovable AI, наполняет 3 предмета реалистичными уроками 3 класса РФ.
+### 6. Что делаем прямо сейчас (для этих двух PDF)
 
----
-
-## Ключевые UI-компоненты
-
-- `<GlassCard>`, `<GradientHero>`, `<SubjectTile>` (pastel по предмету), `<LessonCard>` с progress ring, `<AIResultCard>` (правильно/ошибка + steps + hint + similar), `<AITypingBubble>` (shimmer), `<StreakBadge>`, `<MascotFloater>`, `<Header>` (sticky glass + mobile sheet), `<Footer>`.
-
----
-
-## Решение проблемы «открываются только уроки 5/12/20/35»
-
-Уроки рендерятся из БД через **dynamic route** `/subjects/$slug/lessons/$lessonId`. Список уроков на странице предмета — `.map()` по `lessons` из БД. Никаких switch/if по номерам. Loader делает один `select` — все уроки автоматически доступны и кликабельны. Seed гарантирует, что у каждого предмета есть полный набор уроков.
-
----
-
-## Auth
-
-Email/password + Google (через Lovable broker). Профиль создаётся триггером on signup. Роль `admin` назначается вручную в БД первому пользователю. `_authenticated` layout гейтит приватные роуты, `_admin` проверяет `has_role(uid, 'admin')`.
-
----
-
-## План работ (итерациями)
-
-1. **Фундамент**: дизайн-токены в `styles.css`, базовые UI-компоненты (GlassCard, Header, Footer, Mascot), лендинг с hero.
-2. **Lovable Cloud + схема**: миграции (subjects/books/lessons/tasks/profiles/user_roles/progress/submissions/achievements/embeddings), RLS, storage buckets, триггер профиля, `has_role()`.
-3. **Auth**: login/signup/reset, `_authenticated` layout, профиль.
-4. **Каталог + предметы + уроки**: страницы `/subjects`, `/subjects/$slug`, `/subjects/$slug/lessons/$lessonId` — полностью динамические. Seed-скрипт с демо-контентом.
-5. **Dashboard ученика**: задания, прогресс, streak, достижения, рекомендации.
-6. **AI-проверка ДЗ**: форма `/check`, server fn `checkHomework`, OCR, RAG, красивый AIResultCard, similar task.
-7. **AI-помощник**: стриминговый чат на странице урока.
-8. **Админка**: CRUD для subjects/books/lessons/tasks, загрузка PDF + ingest в embeddings, таблица пользователей, базовая статистика.
-9. **Правовые страницы**: privacy / terms / offer с sidebar-навигацией.
-10. **Полировка**: анимации, адаптив, SEO-мета на каждом роуте, og:image, проверка всех flow.
+В рамках первой итерации:
+1. миграция: bucket'ы + новые поля;
+2. скрипт ingest, прогон на обоих файлах;
+3. ручная сверка ~10 первых уроков (заголовки/границы) — остальное оставляем как «страница = урок», админ доуточнит;
+4. UI просмотра учебника + интеграция кнопки «Проверить» в форму `/check` с vision-режимом.
 
 ---
 
 ## Технические детали
 
-- Все Supabase-запросы — через `createServerFn` + `requireSupabaseAuth` (или `supabaseAdmin` для публичных read'ов в loader'ах публичных страниц).
-- `attachSupabaseAuth` в `src/start.ts`.
-- pgvector для RAG; embeddings через `google/gemini-embedding-001` (1536 dims через `dimensions` param).
-- AI calls через AI SDK + `@ai-sdk/openai-compatible` helper, модель по умолчанию `google/gemini-3-flash-preview`, для OCR/multimodal — `google/gemini-2.5-flash`.
-- Storage RLS: `homework-uploads` — путь `{user_id}/...`, политика по `auth.uid()`.
-- Framer Motion для всех переходов; `prefers-reduced-motion` уважаем.
+```text
+supabase/
+  migrations/<ts>_textbooks.sql      -- buckets + page_from/page_to, page_number, source_image_url, ocr_text, ingest_jobs
+scripts/
+  ingest-textbook.ts                 -- pdftoppm + tesseract(rus) + upload + seed lessons/tasks
+src/lib/
+  textbooks.functions.ts             -- listBookPages, getLessonWithPages, getTaskContext
+  ai.functions.ts                    -- checkHomework: добавить vision (pageImageUrl + studentImageUrls[])
+src/routes/
+  subjects/$slug.books.$bookId.tsx           -- просмотр учебника
+  subjects/$slug.books.$bookId.lessons.$n.tsx -- урок с задачами
+  admin.books.tsx / admin.books.$id.tsx       -- админ-CRUD учебника
+```
+
+Модель AI: **google/gemini-2.5-flash** (vision, дёшево, хорошо читает рукописный русский на фото тетради). Для сложных проверок — fallback на `gemini-2.5-pro`.
+
+Vision-промпт жёстко скоупим: «Ты проверяешь задание №X из учебника Моро 3 класс. Вот страница учебника. Вот фото работы ученика. Верни строго JSON …» — это снимает «галлюцинации не из учебника».
 
 ---
 
-## Что НЕ войдёт в первую итерацию (но архитектура готова)
+## Что нужно подтвердить перед сборкой
 
-- Реальная оплата / подписки
-- Родительский кабинет
-- Реал-тайм соревнования
-- Полноценные ачивки с геймификацией (будут базовые)
-
-После аппрува плана начну с шагов 1–2 (фундамент + Cloud-схема), затем последовательно остальное.
+1. **Границы уроков**: ок ли стартовая стратегия «1 разворот = 1 урок» с ручной доводкой в админке, или хочешь сразу распарсить оглавление вручную?
+2. **OCR**: ставить `tesseract` в репозиторий dev-сервера (для одноразового ingest) или прогнать ingest у меня в sandbox и просто залить результат?
+3. **Vision-модель**: ок `gemini-2.5-flash` по умолчанию (быстрее, дешевле) с ручным переключателем «Глубокая проверка → 2.5-pro»?
