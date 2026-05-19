@@ -70,62 +70,74 @@ export const checkHomework = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
-    // Build RAG context: load matching lesson + tasks
     const { data: subject } = await supabaseAdmin
-      .from("subjects")
-      .select("id, name, slug")
-      .eq("slug", data.subjectSlug)
-      .maybeSingle();
+      .from("subjects").select("id, name, slug").eq("slug", data.subjectSlug).maybeSingle();
 
-    let lesson: { id: string; number: number; title: string; content_md: string | null } | null = null;
+    let lesson: { id: string; number: number; title: string; content_md: string | null; book_id: string | null; page_from: number | null; page_to: number | null } | null = null;
     let task: { id: string; number: number; prompt: string; answer: string | null; solution_md: string | null } | null = null;
+    let pageImages: string[] = [];
+    let ocrSnippet = "";
 
     if (subject && data.lessonNumber) {
       const { data: l } = await supabaseAdmin
         .from("lessons")
-        .select("id, number, title, content_md")
+        .select("id, number, title, content_md, book_id, page_from, page_to")
         .eq("subject_id", subject.id)
         .eq("number", data.lessonNumber)
         .maybeSingle();
       lesson = l;
       if (l && data.taskNumber) {
         const { data: t } = await supabaseAdmin
-          .from("tasks")
-          .select("id, number, prompt, answer, solution_md")
-          .eq("lesson_id", l.id)
-          .eq("number", data.taskNumber)
-          .maybeSingle();
+          .from("tasks").select("id, number, prompt, answer, solution_md")
+          .eq("lesson_id", l.id).eq("number", data.taskNumber).maybeSingle();
         task = t;
+      }
+      if (l?.book_id && l.page_from) {
+        const { data: pages } = await supabaseAdmin
+          .from("book_pages")
+          .select("page_number, image_url, ocr_text")
+          .eq("book_id", l.book_id)
+          .gte("page_number", l.page_from)
+          .lte("page_number", l.page_to ?? l.page_from)
+          .order("page_number");
+        pageImages = (pages ?? []).map((p) => p.image_url);
+        ocrSnippet = (pages ?? []).map((p) => `[с.${p.page_number}]\n${(p.ocr_text ?? "").slice(0, 1500)}`).join("\n\n");
       }
     }
 
     const ctxText = [
       subject ? `Предмет: ${subject.name}` : null,
-      lesson ? `Урок ${lesson.number}: ${lesson.title}\n${lesson.content_md ?? ""}` : null,
-      task ? `Задание ${task.number}: ${task.prompt}\nЭталонный ответ: ${task.answer ?? "—"}\nРешение: ${task.solution_md ?? "—"}` : null,
-    ]
-      .filter(Boolean)
-      .join("\n\n");
+      lesson ? `Урок ${lesson.number}: ${lesson.title}` : null,
+      ocrSnippet ? `ТЕКСТ СТРАНИЦ УЧЕБНИКА (распознано с фото, могут быть мелкие ошибки OCR):\n${ocrSnippet}` : null,
+      task ? `Задание №${task.number}: ${task.prompt}\nЭталонный ответ: ${task.answer ?? "—"}\nРешение: ${task.solution_md ?? "—"}` : null,
+    ].filter(Boolean).join("\n\n");
 
-    const system = `Ты — добрый учитель для ребёнка 3 класса. Отвечай ТОЛЬКО на основе предоставленного материала из учебника. Если в материале нет ответа, прямо скажи: "Я не нашёл это в учебнике". Объясняй простыми словами, по шагам, дружелюбно.
+    const system = `Ты — добрый учитель для ребёнка 3 класса (Россия). Проверяй ответ ТОЛЬКО на основе материала учебника (страницы и текст ниже). Если задания нет в материале — честно скажи: "Я не нашёл это задание в учебнике". Объясняй простыми словами, по шагам, дружелюбно.
 
-Верни СТРОГО JSON по схеме:
+Верни СТРОГО JSON:
 {
   "isCorrect": boolean,
-  "verdict": "Короткий вердикт одной фразой",
-  "explanation": "Понятное объяснение в 2-4 предложения",
-  "steps": ["шаг 1", "шаг 2", "шаг 3"],
-  "hint": "Маленькая подсказка, если ученик ошибся",
-  "similar": { "prompt": "похожее задание", "answer": "ответ к нему" },
-  "motivation": "Короткая мотивирующая фраза"
+  "verdict": "коротко одной фразой",
+  "explanation": "2–4 предложения простыми словами",
+  "steps": ["шаг 1", "шаг 2"],
+  "hint": "подсказка, если ошибка",
+  "similar": { "prompt": "похожая задача", "answer": "ответ" },
+  "motivation": "короткая поддержка"
 }`;
 
     const userParts: Array<Record<string, unknown>> = [
-      { type: "text", text: `КОНТЕКСТ ИЗ УЧЕБНИКА:\n${ctxText || "(нет загруженного материала по этому уроку)"}\n\nОТВЕТ УЧЕНИКА:\n${data.answer}` },
+      { type: "text", text: `КОНТЕКСТ ИЗ УЧЕБНИКА:\n${ctxText || "(материал не загружен)"}\n\nОТВЕТ УЧЕНИКА:\n${data.answer}` },
     ];
+    // attach textbook page images (up to 2)
+    for (const url of pageImages.slice(0, 2)) {
+      userParts.push({ type: "image_url", image_url: { url } });
+    }
+    if (pageImages.length > 0) {
+      userParts.push({ type: "text", text: "Выше — фото страниц учебника. Найди на них нужное задание." });
+    }
     if (data.imageDataUrl) {
       userParts.push({ type: "image_url", image_url: { url: data.imageDataUrl } });
-      userParts.push({ type: "text", text: "На фото — тетрадь ученика. Используй её как часть ответа, распознай текст." });
+      userParts.push({ type: "text", text: "А это фото тетради ученика. Распознай его и проверь решение." });
     }
 
     const result = await callLovableAI([
@@ -133,7 +145,6 @@ export const checkHomework = createServerFn({ method: "POST" })
       { role: "user", content: userParts },
     ]);
 
-    // Persist submission
     await supabase.from("submissions").insert({
       user_id: userId,
       task_id: task?.id ?? null,
