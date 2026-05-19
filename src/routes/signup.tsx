@@ -22,15 +22,20 @@ function Signup() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { display_name: name }, emailRedirectTo: `${window.location.origin}/dashboard` },
     });
     setLoading(false);
     if (error) return toast.error(error.message);
-    toast.success("Готово! Проверь почту для подтверждения.");
-    nav({ to: "/dashboard" });
+    if (data.session) {
+      toast.success("Аккаунт создан! Добро пожаловать 🎉");
+      nav({ to: "/dashboard" });
+    } else {
+      toast.success("Аккаунт создан! Проверь почту и подтверди email, затем войди.");
+      nav({ to: "/login", search: { redirect: "/dashboard" } as never });
+    }
   }
 
   return (
