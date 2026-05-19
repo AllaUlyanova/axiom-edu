@@ -118,7 +118,7 @@ function LessonPage() {
               )}
               <div className="mt-3">
                 <Button asChild size="sm" variant="outline" className="rounded-xl">
-                  <Link to="/check" search={{ subject: subject.slug, lesson: String(lesson.number), task: String(t.number) } as never}>
+                  <Link to="/check" search={{ ...checkSearch, ex: String(t.number), ...(t.page_number != null ? { page: String(t.page_number - offset) } : {}) } as never}>
                     Проверить этот ответ
                   </Link>
                 </Button>
