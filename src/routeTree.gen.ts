@@ -17,6 +17,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CheckRouteImport } from './routes/check'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SubjectsIndexRouteImport } from './routes/subjects/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -64,6 +65,11 @@ const CheckRoute = CheckRouteImport.update({
   path: '/check',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -75,9 +81,9 @@ const SubjectsIndexRoute = SubjectsIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const SubjectsSlugRoute = SubjectsSlugRouteImport.update({
   id: '/subjects/$slug',
@@ -98,6 +104,7 @@ const SubjectsSlugLessonsLessonIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/check': typeof CheckRoute
   '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/check': typeof CheckRoute
   '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -148,6 +156,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/check'
     | '/dashboard'
     | '/how-it-works'
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/check'
     | '/dashboard'
     | '/how-it-works'
@@ -196,6 +206,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   CheckRoute: typeof CheckRoute
   DashboardRoute: typeof DashboardRoute
   HowItWorksRoute: typeof HowItWorksRoute
@@ -205,7 +216,6 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   TermsRoute: typeof TermsRoute
   SubjectsSlugRoute: typeof SubjectsSlugRouteWithChildren
-  AdminIndexRoute: typeof AdminIndexRoute
   SubjectsIndexRoute: typeof SubjectsIndexRoute
 }
 
@@ -267,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -283,10 +300,10 @@ declare module '@tanstack/react-router' {
     }
     '/admin/': {
       id: '/admin/'
-      path: '/admin'
+      path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/subjects/$slug': {
       id: '/subjects/$slug'
@@ -312,6 +329,16 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminRouteChildren {
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface SubjectsSlugRouteChildren {
   SubjectsSlugIndexRoute: typeof SubjectsSlugIndexRoute
   SubjectsSlugLessonsLessonIdRoute: typeof SubjectsSlugLessonsLessonIdRoute
@@ -328,6 +355,7 @@ const SubjectsSlugRouteWithChildren = SubjectsSlugRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   CheckRoute: CheckRoute,
   DashboardRoute: DashboardRoute,
   HowItWorksRoute: HowItWorksRoute,
@@ -337,7 +365,6 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   TermsRoute: TermsRoute,
   SubjectsSlugRoute: SubjectsSlugRouteWithChildren,
-  AdminIndexRoute: AdminIndexRoute,
   SubjectsIndexRoute: SubjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
