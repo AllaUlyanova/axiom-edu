@@ -17,10 +17,12 @@ import { toast } from "sonner";
 type Msg = { id?: string; role: string; content: string; created_at?: string };
 
 const LS_KEY = "umnichka_chat_conv_id";
+const LS_TOKEN = "umnichka_chat_visitor_token";
 
 export function ChatWidget() {
   const [open, setOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [visitorToken, setVisitorToken] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -32,21 +34,26 @@ export function ChatWidget() {
 
   // Restore session
   useEffect(() => {
-    const id = typeof window !== "undefined" ? localStorage.getItem(LS_KEY) : null;
+    if (typeof window === "undefined") return;
+    const id = localStorage.getItem(LS_KEY);
+    const tok = localStorage.getItem(LS_TOKEN);
     if (id) setConversationId(id);
+    if (tok) setVisitorToken(tok);
   }, []);
 
   // Load messages when chat opens with existing conv
   useEffect(() => {
     if (open && conversationId && messages.length === 0) {
-      fetchMessages({ data: { conversationId } })
+      fetchMessages({ data: { conversationId, visitorToken: visitorToken ?? undefined } })
         .then((r) => setMessages(r.messages as Msg[]))
         .catch(() => {
           localStorage.removeItem(LS_KEY);
+          localStorage.removeItem(LS_TOKEN);
           setConversationId(null);
+          setVisitorToken(null);
         });
     }
-  }, [open, conversationId]);
+  }, [open, conversationId, visitorToken]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -57,11 +64,17 @@ export function ChatWidget() {
     setLoading(true);
     try {
       const r = await start({ data: { name, phone, consent: true } });
+      console.log("[chat] started", r.conversationId);
       localStorage.setItem(LS_KEY, r.conversationId);
+      if (r.visitorToken) localStorage.setItem(LS_TOKEN, r.visitorToken);
       setConversationId(r.conversationId);
-      const m = await fetchMessages({ data: { conversationId: r.conversationId } });
+      setVisitorToken(r.visitorToken ?? null);
+      const m = await fetchMessages({
+        data: { conversationId: r.conversationId, visitorToken: r.visitorToken },
+      });
       setMessages(m.messages as Msg[]);
     } catch (err) {
+      console.error("[chat] handleStart failed", err);
       toast.error(err instanceof Error ? err.message : "Не удалось начать чат");
     } finally {
       setLoading(false);
@@ -74,7 +87,9 @@ export function ChatWidget() {
     setMessages((prev) => [...prev, optimistic]);
     setLoading(true);
     try {
-      const r = await send({ data: { conversationId, content: text } });
+      const r = await send({
+        data: { conversationId, content: text, visitorToken: visitorToken ?? undefined },
+      });
       if (r.assistantMessage) {
         setMessages((prev) => [...prev, r.assistantMessage as Msg]);
       } else if (r.escalated) {
@@ -93,7 +108,9 @@ export function ChatWidget() {
   async function handleOperator() {
     if (!conversationId) return;
     try {
-      const r = await callOperator({ data: { conversationId } });
+      const r = await callOperator({
+        data: { conversationId, visitorToken: visitorToken ?? undefined },
+      });
       setMessages((prev) => [...prev, { role: "system", content: r.systemMessage }]);
       toast.success("Оператор уведомлён");
     } catch (err) {
@@ -104,7 +121,9 @@ export function ChatWidget() {
   async function handleOrder(note: string) {
     if (!conversationId) return;
     try {
-      const r = await placeOrder({ data: { conversationId, note } });
+      const r = await placeOrder({
+        data: { conversationId, note, visitorToken: visitorToken ?? undefined },
+      });
       setMessages((prev) => [...prev, { role: "system", content: r.systemMessage }]);
       toast.success("Заявка отправлена!");
     } catch (err) {
