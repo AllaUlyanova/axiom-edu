@@ -165,6 +165,147 @@ export type Database = {
           },
         ]
       }
+      chat_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string
+          status: Database["public"]["Enums"]["chat_conversation_status"]
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          status?: Database["public"]["Enums"]["chat_conversation_status"]
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string
+          status?: Database["public"]["Enums"]["chat_conversation_status"]
+          visitor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_visitor_id_fkey"
+            columns: ["visitor_id"]
+            isOneToOne: false
+            referencedRelation: "chat_visitors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["chat_message_role"]
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["chat_message_role"]
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["chat_message_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_tickets: {
+        Row: {
+          book_id: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["chat_ticket_kind"]
+          lesson_id: string | null
+          note: string | null
+          status: Database["public"]["Enums"]["chat_ticket_status"]
+          subject_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          book_id?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["chat_ticket_kind"]
+          lesson_id?: string | null
+          note?: string | null
+          status?: Database["public"]["Enums"]["chat_ticket_status"]
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          book_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["chat_ticket_kind"]
+          lesson_id?: string | null
+          note?: string | null
+          status?: Database["public"]["Enums"]["chat_ticket_status"]
+          subject_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_tickets_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_visitors: {
+        Row: {
+          consent_at: string
+          created_at: string
+          id: string
+          name: string
+          phone: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          consent_at?: string
+          created_at?: string
+          id?: string
+          name: string
+          phone: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          consent_at?: string
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       exercises: {
         Row: {
           created_at: string
@@ -701,6 +842,10 @@ export type Database = {
     Enums: {
       app_role: "admin" | "student"
       book_type: "textbook" | "workbook"
+      chat_conversation_status: "active" | "escalated" | "ordered" | "closed"
+      chat_message_role: "user" | "assistant" | "operator" | "system"
+      chat_ticket_kind: "order" | "operator_request"
+      chat_ticket_status: "new" | "in_progress" | "done"
       progress_status: "not_started" | "in_progress" | "completed"
     }
     CompositeTypes: {
@@ -831,6 +976,10 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "student"],
       book_type: ["textbook", "workbook"],
+      chat_conversation_status: ["active", "escalated", "ordered", "closed"],
+      chat_message_role: ["user", "assistant", "operator", "system"],
+      chat_ticket_kind: ["order", "operator_request"],
+      chat_ticket_status: ["new", "in_progress", "done"],
       progress_status: ["not_started", "in_progress", "completed"],
     },
   },
