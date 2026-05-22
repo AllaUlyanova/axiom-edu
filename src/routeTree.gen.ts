@@ -23,6 +23,8 @@ import { Route as SubjectsIndexRouteImport } from './routes/subjects/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as SubjectsSlugRouteImport } from './routes/subjects/$slug'
 import { Route as SubjectsSlugIndexRouteImport } from './routes/subjects/$slug.index'
+import { Route as AdminChatsIndexRouteImport } from './routes/admin.chats.index'
+import { Route as AdminChatsIdRouteImport } from './routes/admin.chats.$id'
 import { Route as SubjectsSlugLessonsLessonIdRouteImport } from './routes/subjects/$slug.lessons.$lessonId'
 
 const TermsRoute = TermsRouteImport.update({
@@ -95,6 +97,16 @@ const SubjectsSlugIndexRoute = SubjectsSlugIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SubjectsSlugRoute,
 } as any)
+const AdminChatsIndexRoute = AdminChatsIndexRouteImport.update({
+  id: '/chats/',
+  path: '/chats/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminChatsIdRoute = AdminChatsIdRouteImport.update({
+  id: '/chats/$id',
+  path: '/chats/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
 const SubjectsSlugLessonsLessonIdRoute =
   SubjectsSlugLessonsLessonIdRouteImport.update({
     id: '/lessons/$lessonId',
@@ -116,6 +128,8 @@ export interface FileRoutesByFullPath {
   '/subjects/$slug': typeof SubjectsSlugRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/subjects/': typeof SubjectsIndexRoute
+  '/admin/chats/$id': typeof AdminChatsIdRoute
+  '/admin/chats/': typeof AdminChatsIndexRoute
   '/subjects/$slug/': typeof SubjectsSlugIndexRoute
   '/subjects/$slug/lessons/$lessonId': typeof SubjectsSlugLessonsLessonIdRoute
 }
@@ -131,6 +145,8 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/admin': typeof AdminIndexRoute
   '/subjects': typeof SubjectsIndexRoute
+  '/admin/chats/$id': typeof AdminChatsIdRoute
+  '/admin/chats': typeof AdminChatsIndexRoute
   '/subjects/$slug': typeof SubjectsSlugIndexRoute
   '/subjects/$slug/lessons/$lessonId': typeof SubjectsSlugLessonsLessonIdRoute
 }
@@ -149,6 +165,8 @@ export interface FileRoutesById {
   '/subjects/$slug': typeof SubjectsSlugRouteWithChildren
   '/admin/': typeof AdminIndexRoute
   '/subjects/': typeof SubjectsIndexRoute
+  '/admin/chats/$id': typeof AdminChatsIdRoute
+  '/admin/chats/': typeof AdminChatsIndexRoute
   '/subjects/$slug/': typeof SubjectsSlugIndexRoute
   '/subjects/$slug/lessons/$lessonId': typeof SubjectsSlugLessonsLessonIdRoute
 }
@@ -168,6 +186,8 @@ export interface FileRouteTypes {
     | '/subjects/$slug'
     | '/admin/'
     | '/subjects/'
+    | '/admin/chats/$id'
+    | '/admin/chats/'
     | '/subjects/$slug/'
     | '/subjects/$slug/lessons/$lessonId'
   fileRoutesByTo: FileRoutesByTo
@@ -183,6 +203,8 @@ export interface FileRouteTypes {
     | '/terms'
     | '/admin'
     | '/subjects'
+    | '/admin/chats/$id'
+    | '/admin/chats'
     | '/subjects/$slug'
     | '/subjects/$slug/lessons/$lessonId'
   id:
@@ -200,6 +222,8 @@ export interface FileRouteTypes {
     | '/subjects/$slug'
     | '/admin/'
     | '/subjects/'
+    | '/admin/chats/$id'
+    | '/admin/chats/'
     | '/subjects/$slug/'
     | '/subjects/$slug/lessons/$lessonId'
   fileRoutesById: FileRoutesById
@@ -319,6 +343,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SubjectsSlugIndexRouteImport
       parentRoute: typeof SubjectsSlugRoute
     }
+    '/admin/chats/': {
+      id: '/admin/chats/'
+      path: '/chats'
+      fullPath: '/admin/chats/'
+      preLoaderRoute: typeof AdminChatsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/chats/$id': {
+      id: '/admin/chats/$id'
+      path: '/chats/$id'
+      fullPath: '/admin/chats/$id'
+      preLoaderRoute: typeof AdminChatsIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/subjects/$slug/lessons/$lessonId': {
       id: '/subjects/$slug/lessons/$lessonId'
       path: '/lessons/$lessonId'
@@ -331,10 +369,14 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminChatsIdRoute: typeof AdminChatsIdRoute
+  AdminChatsIndexRoute: typeof AdminChatsIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
+  AdminChatsIdRoute: AdminChatsIdRoute,
+  AdminChatsIndexRoute: AdminChatsIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
