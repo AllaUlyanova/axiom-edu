@@ -340,12 +340,13 @@ export const requestOperator = createServerFn({ method: "POST" })
 const ManualOrderSchema = z.object({
   conversationId: z.string().uuid(),
   note: z.string().trim().min(1).max(500),
+  visitorToken: z.string().optional(),
 });
 
 export const submitChatOrder = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ManualOrderSchema.parse(d))
   .handler(async ({ data }) => {
-    const visitorId = verifyVisitorToken(getCookie(VISITOR_COOKIE));
+    const visitorId = resolveVisitorId(data.visitorToken);
     if (!visitorId) throw new Error("Сессия чата истекла");
     const conv = await loadConversation(data.conversationId, visitorId);
 
