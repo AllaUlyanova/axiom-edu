@@ -232,7 +232,7 @@ function ChatBody({
 }: {
   messages: Msg[];
   loading: boolean;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
   onSend: (t: string) => void;
   onOperator: () => void;
   onOrder: (note: string) => void;
