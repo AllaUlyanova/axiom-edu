@@ -1,46 +1,58 @@
-## Что я нашёл (ты права)
+## Что строим
 
-1. **Расхождение нумерации страниц.** В БД у урока 1 по математике `page_from=5, page_to=6` — это порядковые номера сканов в `book_pages`. На самих сканах нижний колонтитул учебника показывает **4** и **5** — то есть скан включает обложку/титул, и реальная (печатная) страница = `scan_page − 1`. Поэтому на странице урока написано «Страницы учебника 5–6», а на фото видно «4» и «5».
+Плавающую кнопку «Чат» в правом нижнем углу на всех страницах сайта. По клику открывается окно: сначала форма (имя + телефон + согласие на политику), затем чат с ИИ-консультантом, который знает наш каталог уроков и помогает выбрать. Внутри чата — кнопка «Позвать оператора» и кнопка «Оформить заявку». Все чаты, заявки и эскалации видны в админке. Админ получает уведомления в Telegram.
 
-2. **Урок/задание для математики не имеют смысла.** В таблице `tasks` для математики **нет ни одной записи** (`select … where subject='math' → []`). Ребёнок и родитель в учебнике видят только **номер страницы** и **номер упражнения на этой странице**, а не «урок N, задание M». Сейчас форма `/check` требует «Номер урока» и «Номер задания» — это лишние и непонятные поля.
+## База данных (новые таблицы)
 
-## Что делаю
+- `chat_visitors` — гость чата: `id`, `name`, `phone`, `consent_at`, `user_id (nullable)`, `created_at`.
+- `chat_conversations` — диалог: `id`, `visitor_id`, `status` (`active` / `escalated` / `closed` / `ordered`), `last_message_at`, `created_at`. Эскалация и «оформлена заявка» хранятся флагами/статусом.
+- `chat_messages` — сообщения: `id`, `conversation_id`, `role` (`user` / `assistant` / `operator` / `system`), `content`, `created_at`.
+- `chat_tickets` — заявки и эскалации: `id`, `conversation_id`, `kind` (`order` / `operator_request`), `subject_id (nullable)`, `lesson_id (nullable)`, `book_id (nullable)`, `note`, `status` (`new` / `in_progress` / `done`), `created_at`.
 
-### 1. Форма `/check` — для математики ввод по страницам
+RLS: чтение/запись только для admin через `has_role`. Гости (anon) с серверной стороны через `supabaseAdmin` — публичных RLS-политик на запись от anon не открываем. Все мутации идут через server functions, которые валидируют визитёра по cookie-токену.
 
-- Заменяю поля **«Номер урока» + «Номер задания»** на **«Страница в учебнике»** (печатный номер, как в колонтитуле) и **«Номер упражнения на странице»** (необязательно).
-- Поле «Часть учебника» (если у предмета их несколько, как у математики — Часть 1 / Часть 2) — селект книг.
-- Для предметов без таких книг (если появятся) — fallback на текущую форму.
-- В URL сохраняю как `?subject=math&book=<id>&page=4&ex=2`, чтобы кнопки «Проверить ДЗ» с уроков продолжали работать (буду пробрасывать `page` вместо `lesson`).
+Идентификация гостя: при создании визитёра возвращаем подписанный токен (`visitor_id` + HMAC от `CHAT_VISITOR_SECRET`), кладём в httpOnly cookie. Каждая последующая server fn проверяет токен.
 
-### 2. Серверная логика `checkHomework`
+## Серверные функции (`src/lib/chat.functions.ts`)
 
-- Принимает `subjectSlug`, `bookId`, `printedPage`, `exerciseNumber?`, `answer`, `imageDataUrl?`.
-- По `book.page_offset` пересчитывает в `scan_page = printedPage + offset`, грузит `book_pages` для `scan_page` (и соседней при необходимости).
-- По диапазону `page_from..page_to` находит соответствующий `lesson` (если есть) для контекста и сохраняет `submission` со ссылкой на урок.
-- Передаёт AI: фото 1–2 страниц + OCR + просьбу найти упражнение `№N` на печатной странице.
+- `startChatConversation({ name, phone, consent })` — создаёт визитёра + диалог, ставит cookie, шлёт Telegram «🆕 новый чат от …», возвращает `conversationId` и приветствие ассистента.
+- `sendChatMessage({ conversationId, content })` — сохраняет сообщение пользователя, тянет историю + сжатый каталог (предметы → книги → уроки c `title`, `summary`, `content_md`), вызывает Lovable AI (`google/gemini-3-flash-preview`) через AI Gateway с system-prompt'ом продавца-консультанта и tool-calls: `create_order({ subject_slug, lesson_slug?, note })`, `request_operator({ reason })`. Сохраняет ответ ассистента, при вызове тулов создаёт `chat_tickets` и шлёт Telegram.
+- `requestOperator({ conversationId, note })` — ручная эскалация по кнопке: создаёт ticket `operator_request`, статус диалога `escalated`, Telegram.
+- `submitChatOrder({ conversationId, subjectSlug?, lessonSlug?, note })` — оформление заявки по кнопке (как fallback к tool-call), создаёт ticket `order`, статус `ordered`, Telegram.
+- `listAdminConversations` / `getAdminConversation` / `sendAdminOperatorMessage` / `updateTicketStatus` — для админки, защищены `requireSupabaseAuth` + проверкой роли `admin`.
 
-### 3. Фикс нумерации в БД
+Telegram отправка переиспользует существующий паттерн из `src/lib/telegram.functions.ts` (gateway + HTML). Сообщения: новый чат, новая заявка, эскалация оператора. В ссылке — `/admin/chats/:id`.
 
-- Добавляю колонку `books.page_offset INT NOT NULL DEFAULT 0`.
-- Для двух книг по математике («Часть 1», «Часть 2») ставлю `page_offset = 1` (скан 5 = печатная 4).
-- В страницах урока (`/subjects/math/lessons/N`) и заголовке «Страницы учебника …» показываю **печатные** номера: `page_from − offset … page_to − offset`. Под каждым сканом — тоже печатный номер.
+## Frontend
 
-### 4. Кнопки «Проверить ДЗ» в карточках уроков
+### Виджет (всегда виден на сайте)
 
-Сейчас они шлют `?subject=…&lesson=…`. Переделываю на `?subject=…&book=<id>&page=<printed_page_from>`, чтобы на форме сразу была правильная страница.
+- `src/components/chat/ChatWidget.tsx` — плавающая FAB-кнопка (bottom-right, z-50), при клике открывает панель.
+- `src/components/chat/ChatPanel.tsx` — поповер 380×560 (на мобильном — full-screen sheet), три состояния:
+  1. **Intro**: форма имя + телефон (ru-маска, zod-валидация) + чекбокс «Согласен с [политикой](/privacy)».
+  2. **Chat**: лента сообщений с markdown, индикатор «ассистент печатает», ввод снизу, две вторичные кнопки «Позвать оператора» и «Оформить заявку».
+  3. **Submitted**: подтверждение «Заявка отправлена, мы свяжемся с вами».
+- Состояние и `conversationId` — в `localStorage`, чтобы чат не сбрасывался при перезагрузке.
+- Подключаем в `src/components/site/SiteLayout.tsx` (рендерится на всех страницах кроме `/admin`).
+
+### Админ-раздел
+
+- Новый роут `src/routes/admin.chats.tsx` (внутри существующего админ-layout) — список диалогов с фильтрами (Все / С заявкой / Эскалированы), карточка показывает имя, телефон, последнее сообщение, статус, бейдж тикета.
+- `src/routes/admin.chats.$id.tsx` — детальный экран: переписка, панель тикета (если есть), поле «Ответить как оператор» (сообщения с `role=operator` ассистент далее не генерирует автоответы), смена статуса тикета.
 
 ## Технические детали
 
-Файлы:
-- миграция: `alter table books add column page_offset int not null default 0;` + `update books set page_offset=1 where subject_id=(select id from subjects where slug='math');`
-- `src/lib/ai.functions.ts` — новая схема входа (`bookId`, `printedPage`, `exerciseNumber`), резолв по offset, контекст для AI.
-- `src/lib/catalog.functions.ts` — `getSubjectWithContent` уже возвращает `books`; добавлю в `getLesson` возврат `book.page_offset`; новый хелпер `getBooksForSubject(slug)`.
-- `src/routes/check.tsx` — новая форма (book select + printed page + exercise), убираю lesson/task, новый `validateSearch`.
-- `src/routes/subjects/$slug.lessons.$lessonId.tsx` — заголовок «Страницы учебника» и подписи под сканами через `printed = scan − offset`; ссылки `/check` с `book` + `page`.
+- **AI**: Lovable AI Gateway, модель `google/gemini-3-flash-preview`, system-prompt — «ты консультант школы Умничка.AI, помогаешь подобрать урок из каталога, считаешь и оформляешь заявку, при сложности зови оператора через tool». Каталог подгружается раз в N минут и кешируется в памяти модуля (стандартный паттерн).
+- **Секреты**: всё уже есть (`LOVABLE_API_KEY`, `TELEGRAM_API_KEY`, `TELEGRAM_ADMIN_CHAT_ID`). Добавим `CHAT_VISITOR_SECRET` для подписи cookie — попрошу через `add_secret` после твоего «ок».
+- **Валидация**: zod на сервере (имя 1–80, телефон — нормализация `+7XXXXXXXXXX`, согласие = true, content ≤ 4000).
+- **Rate limit**: простая in-memory защита (10 сообщений/мин на conversation).
+- **Realtime для админки**: подписка на `chat_messages` и `chat_tickets` через `supabase.channel`, чтобы админ видел поступающие сообщения live.
 
-## Проверю после имплементации
+## Чего НЕ делаю в этой итерации
 
-- Открыть `/subjects/math/lessons/1` → должно быть «Страницы учебника 4–5», под сканами «с. 4», «с. 5».
-- Нажать «Проверить этот ответ» / «Проверить ДЗ» → форма открывается с предмет = математика, часть = «Часть 1», страница = 4.
-- Отправить ответ на упражнение №3 на стр. 4 → AI получает фото скана `page_number=5` и текст, проверяет.
+- Загрузку файлов/картинок в чат.
+- Голосовые сообщения.
+- Аналитику диалогов.
+- Авторазговор по email (только Telegram уведомление).
+
+После твоего «ок» — начну с миграции, потом сервер, потом виджет, потом админка.
