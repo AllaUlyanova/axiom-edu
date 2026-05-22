@@ -1,29 +1,43 @@
-# Починить ошибку «Сессия чата истекла» сразу после «Начать чат»
+## Что происходит
 
-## Причина
-Серверная функция `startChatConversation` ставит httpOnly-cookie `umnichka_chat_visitor` с `sameSite: "lax"`. Превью сайта открывается во вложенном iframe Lovable, поэтому браузер считает все последующие fetch'и cross-site и **не отправляет Lax-cookie** в `getChatMessages` / `sendChatMessage`. Сервер не находит визитёра → бросает «Сессия чата истекла» → красный тост ошибки.
+Форма (имя + телефон + согласие) валидна, но после клика на «Начать чат» форма не исчезает — то есть `conversationId` не устанавливается. Это значит, что `startChatConversation` либо падает с ошибкой, либо ответ браузером отбрасывается (например, cookie не сохраняется в iframe-превью).
 
-## Что меняю
-В `src/lib/chat.functions.ts` во всех четырёх местах, где зовётся `setCookie(VISITOR_COOKIE, …)` (сейчас только в `startChatConversation`), и для надёжности вынесу опции в общую константу:
+В прошлый раз мы:
+1. Поправили `sameSite` на `"none"` для cookie визитёра (cross-site iframe).
+2. Добавили валидацию + toast.error в форме.
 
-```ts
-const VISITOR_COOKIE_OPTS = {
-  httpOnly: true,
-  sameSite: "none" as const,  // было "lax" — нужно для iframe-превью и встраивания
-  secure: true,                // обязателен при SameSite=None
-  path: "/",
-  maxAge: 60 * 60 * 24 * 30,
-};
-```
+Сейчас регрессия — нужно поймать настоящую ошибку.
 
-И заменю объект опций в `setCookie(...)` на `VISITOR_COOKIE_OPTS`.
+## План
 
-Больше ничего не трогаю — фронтенд `ChatWidget.tsx` остаётся как есть, цепочка `start → fetchMessages` уже корректная.
+### 1. Подробная диагностика на клиенте
+В `src/components/chat/ChatWidget.tsx` в `handleStart`:
+- Логировать `console.error("startChatConversation failed", err)` в catch.
+- В `toast.error` показывать `err.message` (уже сделано, но проверим, что не перетирается общим текстом).
+- Логировать удачный путь: `console.log("chat started", r.conversationId)` — увидим, доходит ли вообще ответ.
 
-## Почему это безопасно
-- Cookie остаётся `httpOnly` + `secure` — JS не читает, по http не уходит.
-- `SameSite=None; Secure` — стандартный режим для виджетов, встраиваемых в чужие страницы (что фактически и происходит в превью и в будущем, если кто-то встроит сайт).
-- На обычном продакшене (открытие сайта напрямую, не в iframe) поведение не меняется — cookie всё так же приходит на следующий serverFn.
+### 2. Серверная диагностика
+В `src/lib/chat.functions.ts` в `startChatConversation.handler`:
+- Обернуть основной код в try/catch и логировать `console.error("startChatConversation handler error", err)` перед re-throw — будет видно в server-function-logs.
+- Проверить, что `normalizePhone(data.phone)` для `+7 999 123 45 67` возвращает не пустую строку (если null — это и есть причина «Неверный формат телефона»).
 
-## Проверка
-После правки: открыть виджет → ввести имя/телефон → согласие → «Начать чат». Должно открыться окно чата с приветствием от ассистента, без тоста ошибки.
+### 3. Проверка third-party cookie
+Если запрос отрабатывает успешно, но `fetchMessages` сразу после падает с «Сессия чата истекла» — значит, браузер не сохраняет cookie из iframe-превью даже с `SameSite=None; Secure` (Safari / Brave / Chrome incognito блокируют by default).
+
+Запасной механизм без cookie:
+- Возвращать `visitorToken` из `startChatConversation` прямо в ответе.
+- Хранить токен в `localStorage` (`umnichka_chat_visitor`) вместе с `conv_id`.
+- Принимать токен из header `x-visitor-token` (или из тела) во всех серверных функциях чата (`getChatMessages`, `sendChatMessage`, `requestOperator`, `submitChatOrder`). Cookie оставить как дополнительный fallback.
+
+Это полностью убирает зависимость от cross-site cookie и делает виджет рабочим в любом окружении (включая iframe превью Lovable).
+
+### 4. Проверка после фикса
+После сборки протестировать в браузер-агенте: открыть чат, ввести «Тест» / «+79991234567», поставить галочку, нажать «Начать чат» — убедиться, что появляется приветствие ассистента и можно отправить сообщение.
+
+## Технические детали правок
+
+Файлы:
+- `src/components/chat/ChatWidget.tsx` — логи + хранение `visitorToken` в `localStorage`, передача его в каждом вызове серверных функций.
+- `src/lib/chat.functions.ts` — серверный логинг; возврат `visitorToken` из `startChatConversation`; чтение токена из тела (приоритет) → cookie (fallback) во всех вызовах; cookie остаётся для обратной совместимости.
+
+Без изменений: схема БД, RLS, Telegram, AI-логика, админка.
