@@ -17,9 +17,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as CheckRouteImport } from './routes/check'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SubjectsIndexRouteImport } from './routes/subjects/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as SubjectsSlugRouteImport } from './routes/subjects/$slug'
 import { Route as SubjectsSlugIndexRouteImport } from './routes/subjects/$slug.index'
 import { Route as SubjectsSlugLessonsLessonIdRouteImport } from './routes/subjects/$slug.lessons.$lessonId'
@@ -64,11 +64,6 @@ const CheckRoute = CheckRouteImport.update({
   path: '/check',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -77,6 +72,11 @@ const IndexRoute = IndexRouteImport.update({
 const SubjectsIndexRoute = SubjectsIndexRouteImport.update({
   id: '/subjects/',
   path: '/subjects/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SubjectsSlugRoute = SubjectsSlugRouteImport.update({
@@ -98,7 +98,6 @@ const SubjectsSlugLessonsLessonIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/check': typeof CheckRoute
   '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -108,13 +107,13 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/subjects/$slug': typeof SubjectsSlugRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/subjects/': typeof SubjectsIndexRoute
   '/subjects/$slug/': typeof SubjectsSlugIndexRoute
   '/subjects/$slug/lessons/$lessonId': typeof SubjectsSlugLessonsLessonIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/check': typeof CheckRoute
   '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -123,6 +122,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
+  '/admin': typeof AdminIndexRoute
   '/subjects': typeof SubjectsIndexRoute
   '/subjects/$slug': typeof SubjectsSlugIndexRoute
   '/subjects/$slug/lessons/$lessonId': typeof SubjectsSlugLessonsLessonIdRoute
@@ -130,7 +130,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
   '/check': typeof CheckRoute
   '/dashboard': typeof DashboardRoute
   '/how-it-works': typeof HowItWorksRoute
@@ -140,6 +139,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/terms': typeof TermsRoute
   '/subjects/$slug': typeof SubjectsSlugRouteWithChildren
+  '/admin/': typeof AdminIndexRoute
   '/subjects/': typeof SubjectsIndexRoute
   '/subjects/$slug/': typeof SubjectsSlugIndexRoute
   '/subjects/$slug/lessons/$lessonId': typeof SubjectsSlugLessonsLessonIdRoute
@@ -148,7 +148,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
     | '/check'
     | '/dashboard'
     | '/how-it-works'
@@ -158,13 +157,13 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/subjects/$slug'
+    | '/admin/'
     | '/subjects/'
     | '/subjects/$slug/'
     | '/subjects/$slug/lessons/$lessonId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/check'
     | '/dashboard'
     | '/how-it-works'
@@ -173,13 +172,13 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/terms'
+    | '/admin'
     | '/subjects'
     | '/subjects/$slug'
     | '/subjects/$slug/lessons/$lessonId'
   id:
     | '__root__'
     | '/'
-    | '/admin'
     | '/check'
     | '/dashboard'
     | '/how-it-works'
@@ -189,6 +188,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/terms'
     | '/subjects/$slug'
+    | '/admin/'
     | '/subjects/'
     | '/subjects/$slug/'
     | '/subjects/$slug/lessons/$lessonId'
@@ -196,7 +196,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
   CheckRoute: typeof CheckRoute
   DashboardRoute: typeof DashboardRoute
   HowItWorksRoute: typeof HowItWorksRoute
@@ -206,6 +205,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   TermsRoute: typeof TermsRoute
   SubjectsSlugRoute: typeof SubjectsSlugRouteWithChildren
+  AdminIndexRoute: typeof AdminIndexRoute
   SubjectsIndexRoute: typeof SubjectsIndexRoute
 }
 
@@ -267,13 +267,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -286,6 +279,13 @@ declare module '@tanstack/react-router' {
       path: '/subjects'
       fullPath: '/subjects/'
       preLoaderRoute: typeof SubjectsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/subjects/$slug': {
@@ -328,7 +328,6 @@ const SubjectsSlugRouteWithChildren = SubjectsSlugRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
   CheckRoute: CheckRoute,
   DashboardRoute: DashboardRoute,
   HowItWorksRoute: HowItWorksRoute,
@@ -338,8 +337,19 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   TermsRoute: TermsRoute,
   SubjectsSlugRoute: SubjectsSlugRouteWithChildren,
+  AdminIndexRoute: AdminIndexRoute,
   SubjectsIndexRoute: SubjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

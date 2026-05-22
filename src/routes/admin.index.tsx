@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { adminStats, adminListLessons, checkAdmin } from "@/lib/admin.functions";
 import { BookOpen, GraduationCap, Layers, Sparkles, Users, ListChecks } from "lucide-react";
 
-export const Route = createFileRoute("/admin")({
+export const Route = createFileRoute("/admin/")({
   head: () => ({ meta: [{ title: "Админка — Умничка.AI" }] }),
   beforeLoad: async () => {
     const { data } = await supabase.auth.getUser();
