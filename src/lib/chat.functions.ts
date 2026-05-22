@@ -297,12 +297,13 @@ export const sendChatMessage = createServerFn({ method: "POST" })
 const OperatorSchema = z.object({
   conversationId: z.string().uuid(),
   note: z.string().trim().max(500).optional(),
+  visitorToken: z.string().optional(),
 });
 
 export const requestOperator = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => OperatorSchema.parse(d))
   .handler(async ({ data }) => {
-    const visitorId = verifyVisitorToken(getCookie(VISITOR_COOKIE));
+    const visitorId = resolveVisitorId(data.visitorToken);
     if (!visitorId) throw new Error("Сессия чата истекла");
     const conv = await loadConversation(data.conversationId, visitorId);
 
