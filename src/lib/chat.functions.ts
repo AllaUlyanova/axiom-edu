@@ -85,7 +85,7 @@ export const startChatConversation = createServerFn({ method: "POST" })
     const token = signVisitorToken(visitor.id);
     setCookie(VISITOR_COOKIE, token, {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "none",
       secure: true,
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
