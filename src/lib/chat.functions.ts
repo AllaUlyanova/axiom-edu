@@ -110,13 +110,6 @@ export const startChatConversation = createServerFn({ method: "POST" })
     }
   });
 
-function resolveVisitorId(bodyToken?: string | null): string | null {
-  if (bodyToken) {
-    const id = verifyVisitorToken(bodyToken);
-    if (id) return id;
-  }
-  return verifyVisitorToken(getCookie(VISITOR_COOKIE));
-}
 
 // ---- Get conversation (for visitor) ----
 
@@ -128,7 +121,7 @@ const GetConvSchema = z.object({
 export const getChatMessages = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => GetConvSchema.parse(d))
   .handler(async ({ data }) => {
-    const visitorId = resolveVisitorId(data.visitorToken);
+    const visitorId = verifyVisitorToken(data.visitorToken || getCookie(VISITOR_COOKIE));
     if (!visitorId) throw new Error("Сессия чата истекла");
     await loadConversation(data.conversationId, visitorId);
     const { data: msgs } = await supabaseAdmin
@@ -150,7 +143,7 @@ const SendSchema = z.object({
 export const sendChatMessage = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => SendSchema.parse(d))
   .handler(async ({ data }) => {
-    const visitorId = resolveVisitorId(data.visitorToken);
+    const visitorId = verifyVisitorToken(data.visitorToken || getCookie(VISITOR_COOKIE));
     if (!visitorId) throw new Error("Сессия чата истекла. Откройте чат заново.");
 
     if (!rateLimit(`conv:${data.conversationId}`)) {
@@ -303,7 +296,7 @@ const OperatorSchema = z.object({
 export const requestOperator = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => OperatorSchema.parse(d))
   .handler(async ({ data }) => {
-    const visitorId = resolveVisitorId(data.visitorToken);
+    const visitorId = verifyVisitorToken(data.visitorToken || getCookie(VISITOR_COOKIE));
     if (!visitorId) throw new Error("Сессия чата истекла");
     const conv = await loadConversation(data.conversationId, visitorId);
 
@@ -346,7 +339,7 @@ const ManualOrderSchema = z.object({
 export const submitChatOrder = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => ManualOrderSchema.parse(d))
   .handler(async ({ data }) => {
-    const visitorId = resolveVisitorId(data.visitorToken);
+    const visitorId = verifyVisitorToken(data.visitorToken || getCookie(VISITOR_COOKIE));
     if (!visitorId) throw new Error("Сессия чата истекла");
     const conv = await loadConversation(data.conversationId, visitorId);
 
