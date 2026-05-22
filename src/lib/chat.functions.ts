@@ -120,12 +120,15 @@ function resolveVisitorId(bodyToken?: string | null): string | null {
 
 // ---- Get conversation (for visitor) ----
 
-const GetConvSchema = z.object({ conversationId: z.string().uuid() });
+const GetConvSchema = z.object({
+  conversationId: z.string().uuid(),
+  visitorToken: z.string().optional(),
+});
 
 export const getChatMessages = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => GetConvSchema.parse(d))
   .handler(async ({ data }) => {
-    const visitorId = verifyVisitorToken(getCookie(VISITOR_COOKIE));
+    const visitorId = resolveVisitorId(data.visitorToken);
     if (!visitorId) throw new Error("Сессия чата истекла");
     await loadConversation(data.conversationId, visitorId);
     const { data: msgs } = await supabaseAdmin
@@ -141,12 +144,13 @@ export const getChatMessages = createServerFn({ method: "POST" })
 const SendSchema = z.object({
   conversationId: z.string().uuid(),
   content: z.string().trim().min(1).max(4000),
+  visitorToken: z.string().optional(),
 });
 
 export const sendChatMessage = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => SendSchema.parse(d))
   .handler(async ({ data }) => {
-    const visitorId = verifyVisitorToken(getCookie(VISITOR_COOKIE));
+    const visitorId = resolveVisitorId(data.visitorToken);
     if (!visitorId) throw new Error("Сессия чата истекла. Откройте чат заново.");
 
     if (!rateLimit(`conv:${data.conversationId}`)) {
