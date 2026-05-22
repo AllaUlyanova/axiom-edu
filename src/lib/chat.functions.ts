@@ -56,50 +56,67 @@ const StartSchema = z.object({
 export const startChatConversation = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => StartSchema.parse(d))
   .handler(async ({ data }) => {
-    const phone = normalizePhone(data.phone);
-    if (!phone) throw new Error("Неверный формат телефона");
+    try {
+      const phone = normalizePhone(data.phone);
+      if (!phone) throw new Error("Неверный формат телефона");
 
-    const { data: visitor, error: vErr } = await supabaseAdmin
-      .from("chat_visitors")
-      .insert({ name: data.name, phone, consent_at: new Date().toISOString() })
-      .select("id")
-      .single();
-    if (vErr || !visitor) throw new Error(vErr?.message || "Не удалось создать визитёра");
+      const { data: visitor, error: vErr } = await supabaseAdmin
+        .from("chat_visitors")
+        .insert({ name: data.name, phone, consent_at: new Date().toISOString() })
+        .select("id")
+        .single();
+      if (vErr || !visitor) throw new Error(vErr?.message || "Не удалось создать визитёра");
 
-    const { data: conv, error: cErr } = await supabaseAdmin
-      .from("chat_conversations")
-      .insert({ visitor_id: visitor.id })
-      .select("id")
-      .single();
-    if (cErr || !conv) throw new Error(cErr?.message || "Не удалось создать чат");
+      const { data: conv, error: cErr } = await supabaseAdmin
+        .from("chat_conversations")
+        .insert({ visitor_id: visitor.id })
+        .select("id")
+        .single();
+      if (cErr || !conv) throw new Error(cErr?.message || "Не удалось создать чат");
 
-    const greeting =
-      `Здравствуйте, ${data.name}! 👋 Я помощник Умничка.AI. Расскажите, в каком классе ребёнок и с каким предметом нужна помощь — подберём подходящий урок.`;
+      const greeting =
+        `Здравствуйте, ${data.name}! 👋 Я помощник Умничка.AI. Расскажите, в каком классе ребёнок и с каким предметом нужна помощь — подберём подходящий урок.`;
 
-    await supabaseAdmin.from("chat_messages").insert({
-      conversation_id: conv.id,
-      role: "assistant",
-      content: greeting,
-    });
+      await supabaseAdmin.from("chat_messages").insert({
+        conversation_id: conv.id,
+        role: "assistant",
+        content: greeting,
+      });
 
-    const token = signVisitorToken(visitor.id);
-    setCookie(VISITOR_COOKIE, token, {
-      httpOnly: true,
-      sameSite: "none",
-      secure: true,
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
+      const token = signVisitorToken(visitor.id);
+      try {
+        setCookie(VISITOR_COOKIE, token, {
+          httpOnly: true,
+          sameSite: "none",
+          secure: true,
+          path: "/",
+          maxAge: 60 * 60 * 24 * 30,
+        });
+      } catch (err) {
+        console.warn("[chat] setCookie failed (non-fatal):", err);
+      }
 
-    void sendTelegram(
-      `🆕 <b>Новый чат на сайте</b>\n` +
-        `👤 ${tgEscape(data.name)}\n` +
-        `📞 <code>${tgEscape(phone)}</code>\n` +
-        `🔗 ${siteBaseUrl()}/admin/chats/${conv.id}`,
-    );
+      void sendTelegram(
+        `🆕 <b>Новый чат на сайте</b>\n` +
+          `👤 ${tgEscape(data.name)}\n` +
+          `📞 <code>${tgEscape(phone)}</code>\n` +
+          `🔗 ${siteBaseUrl()}/admin/chats/${conv.id}`,
+      );
 
-    return { conversationId: conv.id, visitorId: visitor.id };
+      return { conversationId: conv.id, visitorId: visitor.id, visitorToken: token };
+    } catch (err) {
+      console.error("[chat] startChatConversation failed:", err);
+      throw err;
+    }
   });
+
+function resolveVisitorId(bodyToken?: string | null): string | null {
+  if (bodyToken) {
+    const id = verifyVisitorToken(bodyToken);
+    if (id) return id;
+  }
+  return verifyVisitorToken(getCookie(VISITOR_COOKIE));
+}
 
 // ---- Get conversation (for visitor) ----
 
