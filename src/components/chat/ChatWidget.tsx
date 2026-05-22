@@ -172,16 +172,26 @@ function IntroForm({
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [consent, setConsent] = useState(false);
-  const valid = name.trim().length >= 2 && phone.replace(/\D/g, "").length >= 10 && consent;
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (name.trim().length < 2) {
+      toast.error("Введите имя (от 2 символов)");
+      return;
+    }
+    if (phone.replace(/\D/g, "").length < 10) {
+      toast.error("Введите телефон (минимум 10 цифр)");
+      return;
+    }
+    if (!consent) {
+      toast.error("Подтвердите согласие с политикой конфиденциальности");
+      return;
+    }
+    onStart(name.trim(), phone.trim());
+  }
 
   return (
-    <form
-      className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (valid) onStart(name.trim(), phone.trim());
-      }}
-    >
+    <form className="flex flex-1 flex-col gap-3 overflow-y-auto p-4" onSubmit={handleSubmit}>
       <p className="text-sm text-muted-foreground">
         Оставьте имя и телефон — и ассистент поможет выбрать урок.
       </p>
@@ -189,14 +199,12 @@ function IntroForm({
         placeholder="Ваше имя"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        required
         maxLength={80}
       />
       <Input
         placeholder="+7 999 123 45 67"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
-        required
         inputMode="tel"
         maxLength={40}
       />
@@ -215,7 +223,7 @@ function IntroForm({
           и обработкой персональных данных.
         </span>
       </label>
-      <Button type="submit" disabled={!valid || loading} className="mt-auto rounded-xl">
+      <Button type="submit" disabled={loading} className="mt-auto rounded-xl">
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Начать чат"}
       </Button>
     </form>
