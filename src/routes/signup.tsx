@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { SiteLayout } from "@/components/site/SiteLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyAdminNewSignup } from "@/lib/telegram.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/signup")({
@@ -41,10 +43,13 @@ function translateSignupError(message: string): string {
 
 function Signup() {
   const nav = useNavigate();
+  const notify = useServerFn(notifyAdminNewSignup);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -77,6 +82,11 @@ function Signup() {
         toast.error(translateSignupError(error.message));
         return;
       }
+      // Fire-and-forget telegram notification to admin
+      notify({
+        data: { name: trimmedName || normalizedEmail.split("@")[0], email: normalizedEmail },
+      }).catch((err) => console.warn("telegram notify failed", err));
+
       if (data.session) {
         toast.success("Аккаунт создан! Добро пожаловать 🎉");
         nav({ to: "/dashboard" });
