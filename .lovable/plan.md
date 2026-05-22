@@ -1,43 +1,31 @@
-## Что происходит
+## Причина
 
-Форма (имя + телефон + согласие) валидна, но после клика на «Начать чат» форма не исчезает — то есть `conversationId` не устанавливается. Это значит, что `startChatConversation` либо падает с ошибкой, либо ответ браузером отбрасывается (например, cookie не сохраняется в iframe-превью).
+После последнего изменения форма чата работает только с куки, а FAB вообще не кликабельный, потому что клиентский бандл сломан:
 
-В прошлый раз мы:
-1. Поправили `sameSite` на `"none"` для cookie визитёра (cross-site iframe).
-2. Добавили валидацию + toast.error в форме.
+```
+[import-protection] Import denied in client environment
+Denied by specifier pattern: @tanstack/react-start/server
+Importer: src/lib/chat.functions.ts:118
+```
 
-Сейчас регрессия — нужно поймать настоящую ошибку.
+В `chat.functions.ts` я вынес `resolveVisitorId()` на верхний уровень модуля, и она использует `getCookie` из `@tanstack/react-start/server`. Server-fn Vite-плагин вырезает из клиентского бандла только тело `.handler()`. Любая ссылка на server-only API вне `.handler()` (в утилитах, top-level, других экспортах) остаётся в клиенте → import-protection валит всю сборку, страница не гидратируется, никакие onClick не работают.
 
-## План
+## Фикс
 
-### 1. Подробная диагностика на клиенте
-В `src/components/chat/ChatWidget.tsx` в `handleStart`:
-- Логировать `console.error("startChatConversation failed", err)` в catch.
-- В `toast.error` показывать `err.message` (уже сделано, но проверим, что не перетирается общим текстом).
-- Логировать удачный путь: `console.log("chat started", r.conversationId)` — увидим, доходит ли вообще ответ.
+### 1. Убрать `resolveVisitorId` из top-level
+Файл `src/lib/chat.functions.ts`:
+- Удалить функцию `resolveVisitorId`.
+- В каждом из четырёх хендлеров (`getChatMessages`, `sendChatMessage`, `requestOperator`, `submitChatOrder`) заменить вызов `resolveVisitorId(data.visitorToken)` на инлайновый:
 
-### 2. Серверная диагностика
-В `src/lib/chat.functions.ts` в `startChatConversation.handler`:
-- Обернуть основной код в try/catch и логировать `console.error("startChatConversation handler error", err)` перед re-throw — будет видно в server-function-logs.
-- Проверить, что `normalizePhone(data.phone)` для `+7 999 123 45 67` возвращает не пустую строку (если null — это и есть причина «Неверный формат телефона»).
+```ts
+const token = data.visitorToken || getCookie(VISITOR_COOKIE);
+const visitorId = verifyVisitorToken(token);
+```
 
-### 3. Проверка third-party cookie
-Если запрос отрабатывает успешно, но `fetchMessages` сразу после падает с «Сессия чата истекла» — значит, браузер не сохраняет cookie из iframe-превью даже с `SameSite=None; Secure` (Safari / Brave / Chrome incognito блокируют by default).
+Так все обращения к `getCookie` остаются строго внутри `.handler()` и удаляются из клиента трансформером.
 
-Запасной механизм без cookie:
-- Возвращать `visitorToken` из `startChatConversation` прямо в ответе.
-- Хранить токен в `localStorage` (`umnichka_chat_visitor`) вместе с `conv_id`.
-- Принимать токен из header `x-visitor-token` (или из тела) во всех серверных функциях чата (`getChatMessages`, `sendChatMessage`, `requestOperator`, `submitChatOrder`). Cookie оставить как дополнительный fallback.
+### 2. Проверка
+- Открыть превью, убедиться, что круглая кнопка чата снова реагирует на клик.
+- Заполнить форму (имя, телефон, согласие), нажать «Начать чат» — должен открыться чат с приветствием.
 
-Это полностью убирает зависимость от cross-site cookie и делает виджет рабочим в любом окружении (включая iframe превью Lovable).
-
-### 4. Проверка после фикса
-После сборки протестировать в браузер-агенте: открыть чат, ввести «Тест» / «+79991234567», поставить галочку, нажать «Начать чат» — убедиться, что появляется приветствие ассистента и можно отправить сообщение.
-
-## Технические детали правок
-
-Файлы:
-- `src/components/chat/ChatWidget.tsx` — логи + хранение `visitorToken` в `localStorage`, передача его в каждом вызове серверных функций.
-- `src/lib/chat.functions.ts` — серверный логинг; возврат `visitorToken` из `startChatConversation`; чтение токена из тела (приоритет) → cookie (fallback) во всех вызовах; cookie остаётся для обратной совместимости.
-
-Без изменений: схема БД, RLS, Telegram, AI-логика, админка.
+Других правок не нужно — серверная логика, БД, RLS, Telegram, админка остаются как есть.

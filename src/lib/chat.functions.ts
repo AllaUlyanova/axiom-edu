@@ -110,13 +110,6 @@ export const startChatConversation = createServerFn({ method: "POST" })
     }
   });
 
-function resolveVisitorId(bodyToken?: string | null): string | null {
-  if (bodyToken) {
-    const id = verifyVisitorToken(bodyToken);
-    if (id) return id;
-  }
-  return verifyVisitorToken(getCookie(VISITOR_COOKIE));
-}
 
 // ---- Get conversation (for visitor) ----
 
