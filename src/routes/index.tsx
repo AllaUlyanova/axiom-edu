@@ -50,7 +50,7 @@ function Hero() {
             <Sparkles className="h-3.5 w-3.5 text-primary" />
             AI-помощник для 3 класса
           </span>
-          <h1 className="mt-5 text-4xl font-bold leading-[1.05] tracking-tight md:text-6xl">
+          <h1 className="mt-5 text-5xl font-bold leading-[1.05] tracking-tight md:text-7xl">
             Домашка <span className="text-gradient">с улыбкой</span><br />
             и без слёз
           </h1>
